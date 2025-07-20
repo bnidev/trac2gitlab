@@ -17,15 +17,6 @@ type Ticket struct {
 	History     []ChangeLogEntry
 }
 
-// Attachment represents a file attached to a Trac ticket
-type Attachment struct {
-	Filename    string
-	Description string
-	Size        int64
-	Time        time.Time
-	Author      string
-}
-
 // GetAllTicketIDs queries Trac for all matching ticket IDs
 func (c *Client) GetAllTicketIDs(query string) ([]int, error) {
 	var result []int
@@ -68,7 +59,7 @@ func (c *Client) GetTicket(id int) (*Ticket, error) {
 		attributes["description"] = utils.TracToMarkdown(desc)
 	}
 
-	attachments, err := c.GetAttachmentList(id)
+	attachments, err := ListAttachments(c, ResourceTicket, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attachments for ticket %d: %w", id, err)
 	}
@@ -86,54 +77,6 @@ func (c *Client) GetTicket(id int) (*Ticket, error) {
 		Attachments: attachments,
 		History:     history,
 	}, nil
-}
-
-// GetAttachmentList retrieves all attachments for a given ticket ID
-func (c *Client) GetAttachmentList(id int) ([]Attachment, error) {
-	var resp []any
-	error := c.rpc.Call("ticket.listAttachments", []any{id}, &resp)
-	if error != nil {
-		return nil, fmt.Errorf("ticket.listAttachments call failed: %w", error)
-	}
-	if id <= 0 {
-		return nil, fmt.Errorf("invalid ticket ID: %d", id)
-	}
-	attachments := make([]Attachment, len(resp))
-	for i, item := range resp {
-		// Each item is expected to be a slice according to Trac Docs: [filename, description, size, time, author]
-		fields, ok := item.([]any)
-		if !ok || len(fields) != 5 {
-			return nil, fmt.Errorf("unexpected attachment format at index %d", i)
-		}
-
-		time, _ := utils.ParseRequiredTracTime(fields[3])
-		desc := ""
-		if fields[1] != nil {
-			desc = fmt.Sprintf("%v", fields[1])
-		}
-
-		attachments[i] = Attachment{
-			Filename:    fmt.Sprintf("%v", fields[0]),
-			Description: desc,
-			Size:        fields[2].(int64),
-			Time:        time,
-			Author:      fmt.Sprintf("%v", fields[4]),
-		}
-	}
-	return attachments, nil
-}
-
-// GetAttachment retrieves a specific attachment by ticket ID and filename
-func (c *Client) GetAttachment(id int, filename string) ([]byte, error) {
-	var resp []byte
-	err := c.rpc.Call("ticket.getAttachment", []any{id, filename}, &resp)
-	if err != nil {
-		return nil, fmt.Errorf("ticket.getAttachment call failed: %w", err)
-	}
-	if id <= 0 || filename == "" {
-		return nil, fmt.Errorf("invalid ticket ID or filename: %d, %s", id, filename)
-	}
-	return resp, nil
 }
 
 // ChangeLogEntry represents a single entry in the ticket change log
