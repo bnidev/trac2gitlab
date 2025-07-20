@@ -24,5 +24,6 @@ func Execute() {
 
 // AddCommand functions can be called here once other commands are defined
 func init() {
+	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(versionCmd)
 }
