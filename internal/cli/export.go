@@ -38,6 +38,11 @@ var exportCmd = &cobra.Command{
 		if err := exporter.ExportMilestones(client, "data"); err != nil {
 			fmt.Println("❌ Export failed:", err)
 		}
+
+		if err := exporter.ExportWiki(client, "data"); err != nil {
+			fmt.Println("❌ Export failed:", err)
+		}
+
 	},
 }
 
