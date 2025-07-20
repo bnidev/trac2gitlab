@@ -1,0 +1,14 @@
+trac:
+  base_url: https://trac.example.com
+  rpc_path: /xmlrpc
+
+gitlab:
+  base_url: https://gitlab.example.com
+  token: your-token-here
+  project_id: 123
+
+options:
+  include_wiki: true
+  include_attachments: true
+  include_ticket_history: true
+  include_closed_tickets: false
