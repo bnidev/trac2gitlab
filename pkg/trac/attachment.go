@@ -1,6 +1,7 @@
 package trac
 
 import (
+	"encoding/base64"
 	"fmt"
 	"time"
 	"trac2gitlab/internal/utils"
@@ -97,9 +98,14 @@ func GetAttachment(c *Client, resType ResourceType, id any, filename string) ([]
 		return nil, fmt.Errorf("unsupported resource type: %s", resType)
 	}
 
-	var content []byte
-	if err := c.rpc.Call(method, args, &content); err != nil {
+	var base64Str string
+	if err := c.rpc.Call(method, args, &base64Str); err != nil {
 		return nil, err
+	}
+
+	content, err := base64.StdEncoding.DecodeString(base64Str)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 attachment: %w", err)
 	}
 	return content, nil
 }
