@@ -114,3 +114,17 @@ func ParseRequiredTracTime(val any) (time.Time, error) {
 	return *t, nil
 }
 
+func ToInt64(v any) (int64, bool) {
+	switch t := v.(type) {
+	case int64:
+		return t, true
+	case int32:
+		return int64(t), true
+	case float64:
+		return int64(t), true
+	case int:
+		return int64(t), true
+	default:
+		return 0, false
+	}
+}
