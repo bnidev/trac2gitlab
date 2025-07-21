@@ -128,3 +128,23 @@ func ToInt64(v any) (int64, bool) {
 		return 0, false
 	}
 }
+
+func GetString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
+}
+
+func GetInt64(v any) int64 {
+	switch i := v.(type) {
+	case int64:
+		return i
+	case int:
+		return int64(i)
+	case float64:
+		return int64(i)
+	default:
+		return 0
+	}
+}
