@@ -10,7 +10,7 @@ import (
 )
 
 // ExportWiki exports all wiki pages from a Trac instance to markdown files
-func ExportWiki(client *trac.Client, outDir string) error {
+func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) error {
 	fmt.Println("Exporting wiki...")
 
 	pages, err := client.GetWikiPageNames()
@@ -83,7 +83,7 @@ func ExportWiki(client *trac.Client, outDir string) error {
 			}
 
 			// Export attachments for each ticket
-			if len(wikiMeta.Attachments) > 0 {
+			if len(wikiMeta.Attachments) > 0 && includeAttachments {
 				attachmentsDir := filepath.Join(wikiDir, "attachments", fmt.Sprintf("%s", pageName))
 				if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
 					log.Printf("Warning: failed to create attachments directory for ticket #%s: %v\n", pageName, err)

@@ -10,7 +10,7 @@ import (
 )
 
 // ExportTickets exports tickets from Trac and saves them as JSON files
-func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool) error {
+func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool, includeAttachments bool) error {
 	fmt.Println("Exporting tickets...")
 
 	query := "max=0"
@@ -60,7 +60,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 		}
 
 		// Export attachments for each ticket
-		if len(ticket.Attachments) > 0 {
+		if len(ticket.Attachments) > 0 && includeAttachments {
 			attachmentsDir := filepath.Join(ticketsDir, "attachments", fmt.Sprintf("%d", id))
 			if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
 				log.Printf("Warning: failed to create attachments directory for ticket #%d: %v\n", id, err)
