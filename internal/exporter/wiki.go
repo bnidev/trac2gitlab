@@ -33,13 +33,14 @@ func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) err
 		return fmt.Errorf("failed to create wiki directory: %w", err)
 	}
 
-	for _, pageName := range pages {
+	for pageIndex, pageName := range pages {
 		wikiMeta, err := client.GetWikiPageInfo(pageName)
 		if err != nil {
 			return fmt.Errorf("failed to get wiki page info for %q: %w", pageName, err)
 		}
 
 		for version := int64(1); version <= wikiMeta.Version; version++ {
+			fmt.Printf("Exporting wiki page (%d/%d) %q version %d/%d...\n", pageIndex+1, len(pages), pageName, version, wikiMeta.Version)
 			content, err := client.GetWikiPageVersion(pageName, version)
 			if err != nil {
 				return fmt.Errorf("failed to get wiki page %q version %d: %w", pageName, version, err)
@@ -84,6 +85,7 @@ func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) err
 
 			// Export attachments for each ticket
 			if len(wikiMeta.Attachments) > 0 && includeAttachments {
+				fmt.Printf("Exporting attachments for wiki page %s...\n", pageName)
 				attachmentsDir := filepath.Join(wikiDir, "attachments", fmt.Sprintf("%s", pageName))
 				if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
 					log.Printf("Warning: failed to create attachments directory for ticket #%s: %v\n", pageName, err)
