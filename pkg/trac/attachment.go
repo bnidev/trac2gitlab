@@ -44,6 +44,21 @@ func ListAttachments(c *Client, resType ResourceType, id any) ([]Attachment, err
 
 	attachments := make([]Attachment, 0, len(raw))
 	for i, item := range raw {
+		if resType == ResourceWiki {
+			// Wiki: only filename available
+			filename, ok := item.(string)
+			if !ok {
+				fmt.Printf("skipping: expected string at index %d: %#v\n", i, item)
+				continue
+			}
+			attachments = append(attachments, Attachment{
+				Filename: filename,
+				// No metadata available
+			})
+			continue
+		}
+
+		// Ticket: full metadata
 		tuple, ok := item.([]any)
 		if !ok || len(tuple) != 5 {
 			fmt.Printf("skipping: unexpected format at index %d: %#v\n", i, item)
@@ -78,7 +93,6 @@ func ListAttachments(c *Client, resType ResourceType, id any) ([]Attachment, err
 			Author:      author,
 		})
 	}
-
 	return attachments, nil
 }
 
@@ -93,7 +107,7 @@ func GetAttachment(c *Client, resType ResourceType, id any, filename string) ([]
 		args = []any{id, filename}
 	case ResourceWiki:
 		method = "wiki.getAttachment"
-		args = []any{fmt.Sprintf("%s/%s", id, filename)}
+		args = []any{filename}
 	default:
 		return nil, fmt.Errorf("unsupported resource type: %s", resType)
 	}
