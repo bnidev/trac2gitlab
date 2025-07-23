@@ -6,6 +6,7 @@ import (
 	"trac2gitlab/internal/utils"
 )
 
+// Milestone represents a Trac milestone with its details.
 type Milestone struct {
 	Name          string     `json:"name"`
 	Description   *string    `json:"description,omitempty"`
@@ -13,6 +14,7 @@ type Milestone struct {
 	CompletedDate *time.Time `json:"completed_date,omitempty"`
 }
 
+// GetMilestoneNames retrieves the names of all milestones in Trac.
 func (c *Client) GetMilestoneNames() ([]string, error) {
 	var resp []string
 
@@ -24,6 +26,7 @@ func (c *Client) GetMilestoneNames() ([]string, error) {
 	return resp, nil
 }
 
+// GetMilestoneByName retrieves a milestone by its name.
 func (c *Client) GetMilestoneByName(name string) (*Milestone, error) {
 	var resp map[string]any
 	err := c.rpc.Call("ticket.milestone.get", []any{name}, &resp)
