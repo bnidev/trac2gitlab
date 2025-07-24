@@ -31,7 +31,7 @@ var exportCmd = &cobra.Command{
 			fmt.Println("❌ Trac plugin version validation failed:", validateVersionErr)
 		}
 
-		if err := exporter.ExportTickets(client, "data", cfg.Options.IncludeClosedTickets, cfg.Options.IncludeAttachments); err != nil {
+		if err := exporter.ExportTickets(client, "data", cfg.ExportOptions.IncludeClosedTickets, cfg.ExportOptions.IncludeAttachments); err != nil {
 			fmt.Println("❌ Export failed:", err)
 		}
 
@@ -39,7 +39,7 @@ var exportCmd = &cobra.Command{
 			fmt.Println("❌ Export failed:", err)
 		}
 
-		if err := exporter.ExportWiki(client, "data", cfg.Options.IncludeAttachments); err != nil {
+		if err := exporter.ExportWiki(client, "data", cfg.ExportOptions.IncludeAttachments); err != nil {
 			fmt.Println("❌ Export failed:", err)
 		}
 

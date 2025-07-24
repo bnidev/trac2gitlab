@@ -22,14 +22,19 @@ type Config struct {
 		ProjectID int    `yaml:"project_id"`
 	} `yaml:"gitlab"`
 
-	Options struct {
+	ExportOptions struct {
 		IncludeWiki          bool   `yaml:"include_wiki"`
 		IncludeAttachments   bool   `yaml:"include_attachments"`
 		IncludeTicketHistory bool   `yaml:"include_ticket_history"`
 		IncludeClosedTickets bool   `yaml:"include_closed_tickets"`
 		DefaultUser          string `yaml:"default_user"`
 		ExportDir            string `yaml:"export_dir"`
-	} `yaml:"options"`
+	} `yaml:"export_options"`
+
+	ImportOptions struct {
+		ImportIssues     bool `yaml:"import_issues"`
+		ImportMilestones bool `yaml:"import_milestones"`
+	} `yaml:"import_options"`
 }
 
 // LoadConfig reads the configuration from config.yaml
