@@ -18,6 +18,7 @@ type Config struct {
 
 	GitLab struct {
 		BaseURL   string `yaml:"base_url"`
+		APIPath   string `yaml:"api_path"`
 		Token     string `yaml:"token"`
 		ProjectID int    `yaml:"project_id"`
 	} `yaml:"gitlab"`
