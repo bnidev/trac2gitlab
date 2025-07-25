@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 	"trac2gitlab/internal/config"
 	"trac2gitlab/internal/exporter"
 	"trac2gitlab/pkg/trac"
@@ -31,6 +32,8 @@ var exportCmd = &cobra.Command{
 			fmt.Println("❌ Trac plugin version validation failed:", validateVersionErr)
 		}
 
+		start := time.Now()
+
 		if err := exporter.ExportTickets(client, "data", cfg.ExportOptions.IncludeClosedTickets, cfg.ExportOptions.IncludeAttachments); err != nil {
 			fmt.Println("❌ Export failed:", err)
 		}
@@ -43,6 +46,7 @@ var exportCmd = &cobra.Command{
 			fmt.Println("❌ Export failed:", err)
 		}
 
+		elapsed := time.Since(start)
+		fmt.Printf("Export completed in %s\n", elapsed)
 	},
 }
-
