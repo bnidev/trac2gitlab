@@ -18,17 +18,6 @@ func (c *Client) GetProjectList() error {
 	return nil
 }
 
-// Project represents a GitLab project with essential fields.
-type Project struct {
-	ID                int    `json:"id"`
-	Description       string `json:"description"`
-	DefaultBranch     string `json:"default_branch"`
-	Name              string `json:"name"`
-	NameWithNamespace string `json:"name_with_namespace"`
-	Path              string `json:"path"`
-	PathWithNamespace string `json:"path_with_namespace"`
-}
-
 // GetProject retrieves a specific project by its ID.
 func (c *Client) GetProject(id any) (*gitlab.Project, error) {
 	project, _, err := c.git.Projects.GetProject(id, &gitlab.GetProjectOptions{})
