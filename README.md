@@ -49,12 +49,20 @@ If you're using another version, some methods may not be available or may behave
 - Access to a Trac instance with XML-RPC enabled
 - GitLab project with API access token
 
-## Running the tool
+## Running the tool (from source)
 
 1. Clone the repository
 2. Configure `config.example.yml` to your environment and rename it to `config.yml`
-3. Run the exporter via:
+3. Run the commands in your terminal
+
+**Trac Exporter:**
 
 ```bash
-go run ./cmd/trac2gitlab export
+make export
+```
+
+**GitLab Importer:**
+
+```bash
+make migrate
 ```
