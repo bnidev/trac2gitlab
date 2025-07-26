@@ -26,12 +26,14 @@ func ReadFilesFromDir(dirPath string, fileType string) ([][]byte, error) {
 	}
 
 	var results [][]byte
-
-	for _, entry := range entries {
+	const maxFiles = 1000
+	for i, entry := range entries {
+		if i >= maxFiles {
+			break
+		}
 		if entry.IsDir() {
 			continue
 		}
-
 		if strings.HasSuffix(entry.Name(), fileType) {
 			fullPath := filepath.Join(dirPath, entry.Name())
 			content, err := os.ReadFile(fullPath)
@@ -45,4 +47,3 @@ func ReadFilesFromDir(dirPath string, fileType string) ([][]byte, error) {
 
 	return results, nil
 }
-
