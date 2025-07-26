@@ -53,6 +53,7 @@ func (c *Client) CreateMilestone(projectID any, opts *MilestoneOptions) (*Milest
 	return milestone, nil
 }
 
+// UpdateMilestoneOptions defines the options for updating a milestone (attributes inferred from the original GitLab client-go package)
 type UpdateMilestoneOptions = gitlab.UpdateMilestoneOptions
 
 // UpdateMilestone updates an existing milestone in the specified project.
