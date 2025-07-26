@@ -22,7 +22,7 @@ func (c *Client) GetProjectList() error {
 func (c *Client) GetProject(id any) (*gitlab.Project, error) {
 	project, _, err := c.git.Projects.GetProject(id, &gitlab.GetProjectOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project %d: %w", id, err)
+		return nil, fmt.Errorf("failed to get project %v: %w", id, err)
 	}
 	return project, nil
 }
