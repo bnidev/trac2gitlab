@@ -9,11 +9,15 @@ import (
 
 // ReadFilesFromDir reads all files with the given extension from the specified directory.
 func ReadFilesFromDir(dirPath string, fileType string) ([][]byte, error) {
+	allowedTypes := map[string]bool{".json": true, ".md": true}
 	if fileType == "" {
 		fileType = ".json"
 	}
 	if !strings.HasPrefix(fileType, ".") {
 		fileType = "." + fileType
+	}
+	if !allowedTypes[fileType] {
+		return nil, fmt.Errorf("unsupported file type: %s", fileType)
 	}
 
 	entries, err := os.ReadDir(dirPath)
