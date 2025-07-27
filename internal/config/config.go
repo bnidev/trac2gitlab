@@ -74,3 +74,49 @@ func CheckConfigExists() bool {
 	_, err := os.Stat("config.yaml")
 	return !os.IsNotExist(err)
 }
+
+// CreateDefaultConfig creates a default configuration file
+func CreateDefaultConfig() error {
+	defaultConfig := Config{
+		Trac: TracConfig{
+			BaseURL: "https://trac.example.com",
+			RPCPath: "/xmlrpc",
+		},
+		GitLab: GitLabConfig{
+			BaseURL:   "https://gitlab.com",
+			APIPath:   "/api/v4",
+			Token:     "your_gitlab_token",
+			ProjectID: 1,
+		},
+		ExportOptions: ExportOptions{
+			IncludeWiki:          true,
+			IncludeAttachments:   true,
+			IncludeTicketHistory: true,
+			IncludeClosedTickets: true,
+			ExportDir:            "data",
+		},
+		ImportOptions: ImportOptions{
+			ImportIssues:     true,
+			ImportMilestones: true,
+		},
+	}
+
+	data, err := yaml.Marshal(&defaultConfig)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create("config.yaml")
+	if err != nil {
+		return err
+	}
+
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return nil
+}
