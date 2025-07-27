@@ -9,33 +9,39 @@ import (
 
 // Config holds the configuration for the application
 type Config struct {
-	Trac struct {
-		BaseURL  string `yaml:"base_url"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-		RPCPath  string `yaml:"rpc_path"`
-	} `yaml:"trac"`
+	Trac          TracConfig    `yaml:"trac"`
+	GitLab        GitLabConfig  `yaml:"gitlab"`
+	ExportOptions ExportOptions `yaml:"export_options"`
+	ImportOptions ImportOptions `yaml:"import_options"`
+}
 
-	GitLab struct {
-		BaseURL   string `yaml:"base_url"`
-		APIPath   string `yaml:"api_path"`
-		Token     string `yaml:"token"`
-		ProjectID int    `yaml:"project_id"`
-	} `yaml:"gitlab"`
+// TracConfig holds the configuration for the Trac instance
+type TracConfig struct {
+	BaseURL string `yaml:"base_url"`
+	RPCPath string `yaml:"rpc_path"`
+}
 
-	ExportOptions struct {
-		IncludeWiki          bool   `yaml:"include_wiki"`
-		IncludeAttachments   bool   `yaml:"include_attachments"`
-		IncludeTicketHistory bool   `yaml:"include_ticket_history"`
-		IncludeClosedTickets bool   `yaml:"include_closed_tickets"`
-		DefaultUser          string `yaml:"default_user"`
-		ExportDir            string `yaml:"export_dir"`
-	} `yaml:"export_options"`
+// GitLabConfig holds the configuration for the GitLab instance
+type GitLabConfig struct {
+	BaseURL   string `yaml:"base_url"`
+	APIPath   string `yaml:"api_path"`
+	Token     string `yaml:"token"`
+	ProjectID int    `yaml:"project_id"`
+}
 
-	ImportOptions struct {
-		ImportIssues     bool `yaml:"import_issues"`
-		ImportMilestones bool `yaml:"import_milestones"`
-	} `yaml:"import_options"`
+// ExportOptions holds the options for exporting data from Trac
+type ExportOptions struct {
+	IncludeWiki          bool   `yaml:"include_wiki"`
+	IncludeAttachments   bool   `yaml:"include_attachments"`
+	IncludeTicketHistory bool   `yaml:"include_ticket_history"`
+	IncludeClosedTickets bool   `yaml:"include_closed_tickets"`
+	ExportDir            string `yaml:"export_dir"`
+}
+
+// ImportOptions holds the options for importing data into GitLab
+type ImportOptions struct {
+	ImportIssues     bool `yaml:"import_issues"`
+	ImportMilestones bool `yaml:"import_milestones"`
 }
 
 // LoadConfig reads the configuration from config.yaml
