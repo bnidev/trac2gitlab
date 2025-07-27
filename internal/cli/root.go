@@ -10,8 +10,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "trac2gitlab",
 	Short: "CLI to export Trac data and migrate it to GitLab",
-	Long: `trac2gitlab helps you extract tickets, attachments, wiki pages, and history
-from Trac and import them into a GitLab instance.`,
+	Long:  "trac2gitlab helps you extract tickets, attachments, wiki pages, and history from Trac and import them into a GitLab instance.",
 }
 
 // Execute runs the root command and handles any errors
