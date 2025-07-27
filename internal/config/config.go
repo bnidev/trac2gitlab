@@ -46,6 +46,10 @@ type ImportOptions struct {
 
 // LoadConfig reads the configuration from config.yaml
 func LoadConfig() Config {
+	if !CheckConfigExists() {
+		log.Fatal("Configuration file config.yaml does not exist. Please run 'trac2gitlab init' to create it.")
+	}
+
 	f, err := os.Open("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to open config.yaml: %v", err)
@@ -63,4 +67,10 @@ func LoadConfig() Config {
 		log.Fatalf("Failed to parse config.yaml: %v", err)
 	}
 	return cfg
+}
+
+// CheckConfigExists checks if the configuration file exists
+func CheckConfigExists() bool {
+	_, err := os.Stat("config.yaml")
+	return !os.IsNotExist(err)
 }
