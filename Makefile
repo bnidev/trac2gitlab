@@ -1,6 +1,9 @@
 run:
 	go run ./cmd/trac2gitlab
 
+init:
+	go run ./cmd/trac2gitlab init
+
 export:
 	go run ./cmd/trac2gitlab export
 
