@@ -88,13 +88,13 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 						}
 					}
 
-					if input.CompletedDate != "" && existing.State != "close" {
+					if input.CompletedDate != "" && existing.State != "closed" {
 						var stateEvent = "close"
 						updateOpts.StateEvent = &stateEvent
 						needsUpdate = true
 					}
 
-					if input.CompletedDate == "" && existing.State == "close" {
+					if input.CompletedDate == "" && existing.State == "closed" {
 						var stateEvent = "activate"
 						updateOpts.StateEvent = &stateEvent
 						needsUpdate = true
