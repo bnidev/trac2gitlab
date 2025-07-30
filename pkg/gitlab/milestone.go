@@ -65,3 +65,25 @@ func (c *Client) UpdateMilestone(projectID any, milestoneID int, opts *UpdateMil
 	return milestone, nil
 }
 
+func (c *Client) GetMilestoneByName(projectID any, name string) (*Milestone, error) {
+	opts := &ListMilestonesOptions{
+		Search: &name,
+	}
+
+	milestones, _, err := c.git.Milestones.ListMilestones(projectID, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(milestones) == 0 {
+		return nil, nil
+	}
+
+	for _, milestone := range milestones {
+		if milestone.Title == name {
+			return milestone, nil
+		}
+	}
+
+	return nil, nil
+}
