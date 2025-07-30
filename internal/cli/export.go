@@ -43,8 +43,10 @@ var exportCmd = &cobra.Command{
 			slog.Error("Milestone export failed", "errorMsg", err)
 		}
 
-		if err := exporter.ExportWiki(client, "data", cfg.ExportOptions.IncludeAttachments); err != nil {
-			slog.Error("Wiki export failed", "errorMsg", err)
+		if cfg.ExportOptions.IncludeWiki {
+			if err := exporter.ExportWiki(client, "data", cfg.ExportOptions.IncludeAttachments); err != nil {
+				slog.Error("Wiki export failed", "errorMsg", err)
+			}
 		}
 
 		elapsed := time.Since(start)
