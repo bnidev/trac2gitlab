@@ -60,6 +60,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 
 // exportSingleTicket exports a single ticket and its attachments
 func exportSingleTicket(client *trac.Client, ticketsDir string, id int, includeAttachments bool) error {
+	slog.Debug("Exporting ticket", "ticketID", id)
 	ticket, err := client.GetTicket(id)
 	if err != nil {
 		return fmt.Errorf("failed to fetch ticket: %w", err)
