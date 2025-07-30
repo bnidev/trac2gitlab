@@ -3,6 +3,7 @@ package gitlab
 import (
 	"fmt"
 	"log"
+	"log/slog"
 
 	"gitlab.com/gitlab-org/api/client-go"
 )
@@ -15,7 +16,7 @@ type Client struct {
 func NewGitLabClient(baseURL, apiPath string, accessToken string) (*Client, error) {
 	url := fmt.Sprintf("%s%s", baseURL, apiPath)
 
-	fmt.Printf("Connecting to GitLab at %s\n", url)
+	slog.Debug("Creating GitLab API client", "url", url)
 
 	git, err := gitlab.NewClient(accessToken, gitlab.WithBaseURL(url))
 	if err != nil {
@@ -45,20 +46,20 @@ func (c* Client) GetVersion() (*Version, error) {
 
 
 func (c *Client) ValidateGitLab() error {
-	fmt.Println("Validating GitLab connection...")
+	slog.Debug("Validating GitLab connection...")
 
 	version, err := c.GetVersion()
 	if err != nil {
 		return fmt.Errorf("failed to get GitLab version: %w", err)
 	}
-	fmt.Printf("GitLab version: %s (Revision %s)\n", version.Version, version.Revision)
+	slog.Debug("GitLab version retrieved", "version", version.Version, "revision", version.Revision)
 
 	user, _, err := c.git.Users.CurrentUser()
 	if err != nil {
 		log.Fatalf("Failed to get current user: %v", err)
 	}
 
-	fmt.Printf("Authenticated as: [%d] %s (%s)\n", user.ID, user.Name, user.Username)
+	slog.Debug("Authenticated user", "id", user.ID, "name", user.Name, "username", user.Username)
 
 	return nil
 }

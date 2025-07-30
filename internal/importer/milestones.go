@@ -3,6 +3,7 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 	"trac2gitlab/internal/utils"
 	"trac2gitlab/pkg/gitlab"
@@ -17,20 +18,17 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 		return err
 	}
 
+	slog.Info("Starting milestone import...", "project", project.Name, "projectID", project.ID)
+
 	existingMilestones, err := client.ListMilestones(projectID, nil)
 	if err != nil {
 		return fmt.Errorf("failed to list existing milestones: %w", err)
 	}
 
 	if len(existingMilestones) > 0 {
-		fmt.Printf("Found %d existing milestone%s in project %s (ID: %d)\n", len(existingMilestones), func() string {
-			if len(existingMilestones) == 1 {
-				return ""
-			}
-			return "s"
-		}(), project.Name, project.ID)
+		slog.Debug("Existing milestones found", "count", len(existingMilestones))
 	} else {
-		fmt.Printf("No existing milestones found for project %s (ID: %d)\n", project.Name, project.ID)
+		slog.Debug("No existing milestones found for project", "projectID", projectID)
 	}
 
 	fmt.Printf("Importing milestones for project: %s (ID: %d)\n", project.Name, project.ID)
@@ -67,10 +65,9 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 			for _, existing := range existingMilestones {
 				if existing.Title == input.Name {
 					milestoneExists = true
-					fmt.Printf("Milestone '%s' already exists (ID: %d), skipping creation.\n", existing.Title, existing.ID)
+					slog.Debug("Found existing milestone, skipping creation", "title", existing.Title, "id", existing.ID)
 
-					// If the milestone already exists, update it if needed
-					fmt.Printf("Checking if milestone '%s' needs updating...\n", existing.Title)
+					slog.Debug("Checking if existing milestone needs update", "title", existing.Title, "id", existing.ID)
 					updateOpts := &gitlab.UpdateMilestoneOptions{}
 
 					needsUpdate := false
@@ -104,14 +101,14 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 					}
 
 					if needsUpdate {
-						fmt.Printf("Updating milestone '%s' (ID: %d)\n", existing.Title, existing.ID)
+						slog.Debug("Updating existing milestone", "title", existing.Title, "id", existing.ID)
 						_, err = client.UpdateMilestone(projectID, existing.ID, updateOpts)
 						if err != nil {
 							return fmt.Errorf("failed to update milestone: %w", err)
 						}
-						fmt.Printf("Updated milestone '%s' (ID: %d)\n", existing.Title, existing.ID)
+						slog.Info("Milestone updated successfully", "title", existing.Title, "id", existing.ID)
 					} else {
-						fmt.Printf("No updates needed for milestone '%s' (ID: %d)\n", existing.Title, existing.ID)
+						slog.Debug("No updates needed for existing milestone", "title", existing.Title, "id", existing.ID)
 					}
 
 					break
@@ -128,17 +125,13 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 
 			milestone, err := client.CreateMilestone(projectID, opts)
 			if err != nil {
-				fmt.Printf("Failed to create milestone: %v\n", err)
+				return fmt.Errorf("failed to create milestone: %s", err)
 			}
 
-			fmt.Printf("Created milestone: %s (ID: %d)\n", milestone.Title, milestone.ID)
+			slog.Info("Milestone created successfully", "title", milestone.Title, "id", milestone.ID)
 
 			// close milestone if CompletedDate is provided
 			if input.CompletedDate != "" {
-				if err != nil {
-					return fmt.Errorf("failed to parse completed date %q: %w", input.CompletedDate, err)
-				}
-
 				var stateEvent = "close"
 
 				updateOpts := &gitlab.UpdateMilestoneOptions{
@@ -146,13 +139,14 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 				}
 				_, err = client.UpdateMilestone(projectID, milestone.ID, updateOpts)
 				if err != nil {
-					fmt.Printf("Failed to close milestone: %v\n", err)
+					slog.Error("Failed to close milestone", "title", milestone.Title, "id", milestone.ID, "error", err)
 				} else {
-					fmt.Printf("Closed milestone %s\n", milestone.Title)
+					slog.Info("Milestone closed successfully", "title", milestone.Title, "id", milestone.ID)
 				}
 			}
 		}
 	}
 
+	slog.Info("Milestone import completed", "count", len(milestones))
 	return nil
 }

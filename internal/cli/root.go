@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 // Execute runs the root command and handles any errors
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println("Error:", err)
+		slog.Error("Command execution failed", "errorMsg", err)
 		os.Exit(1)
 	}
 }

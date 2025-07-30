@@ -3,7 +3,7 @@ package exporter
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,7 +12,7 @@ import (
 
 // ExportTickets exports tickets from Trac and saves them as JSON files
 func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool, includeAttachments bool) error {
-	fmt.Println("Exporting tickets...")
+	slog.Info("Starting ticket export...")
 
 	query := "max=0"
 	if !includeClosedTickets {
@@ -29,12 +29,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 		return fmt.Errorf("failed to create tickets directory: %w", err)
 	}
 
-	fmt.Printf("Found %d ticket%s\n", len(ids), func() string {
-		if len(ids) == 1 {
-			return ""
-		}
-		return "s"
-	}())
+	slog.Debug("Tickets found", "count", len(ids))
 
 	const maxWorkers = 10
 	var wg sync.WaitGroup
@@ -46,7 +41,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 			defer wg.Done()
 			for id := range ticketChan {
 				if err := exportSingleTicket(client, ticketsDir, id, includeAttachments); err != nil {
-					log.Printf("Warning: failed to export ticket #%d: %v", id, err)
+					slog.Error("Failed to export ticket", "ticketID", id, "error", err)
 				}
 			}
 		}()
@@ -59,7 +54,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 
 	wg.Wait()
 
-	fmt.Println("Ticket export complete.")
+	slog.Info("Ticket export completed", "count", len(ids))
 	return nil
 }
 
@@ -79,18 +74,17 @@ func exportSingleTicket(client *trac.Client, ticketsDir string, id int, includeA
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(ticket); err != nil {
-		log.Printf("Warning: failed to encode ticket #%d: %v", id, err)
+		slog.Warn("Failed to encode ticket", "ticketID", id, "error", err)
 	}
 	if cerr := file.Close(); cerr != nil {
-		log.Printf("Warning: failed to close file for ticket #%d: %v", id, cerr)
+		slog.Warn("Failed to close ticket file", "ticketID", id, "error", cerr)
 	}
 
 	// Download attachments
 	if includeAttachments && len(ticket.Attachments) > 0 {
 		attachmentsDir := filepath.Join(ticketsDir, "attachments", fmt.Sprintf("%d", id))
 		if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
-			log.Printf("Warning: failed to create attachments directory for ticket #%d: %v", id, err)
-			return nil
+			return fmt.Errorf("failed to create attachments directory for ticket #%d: %w", id, err)
 		}
 
 		var attWg sync.WaitGroup
@@ -104,8 +98,7 @@ func exportSingleTicket(client *trac.Client, ticketsDir string, id int, includeA
 
 				content, err := trac.GetAttachment(client, trac.ResourceTicket, id, att.Filename)
 				if err != nil {
-					log.Printf("Warning: failed to download attachment %q for ticket #%d: %v\n", att.Filename, id, err)
-					attErrs <- err
+					attErrs <- fmt.Errorf("failed to download attachment %q for ticket #%d: %w", att.Filename, id, err)
 					return
 				}
 
@@ -113,8 +106,8 @@ func exportSingleTicket(client *trac.Client, ticketsDir string, id int, includeA
 				attPath := filepath.Join(attachmentsDir, safeFilename)
 
 				if err := os.WriteFile(attPath, content, 0644); err != nil {
-					log.Printf("Warning: failed to write attachment %q for ticket #%d: %v\n", att.Filename, id, err)
-					attErrs <- err
+					attErrs <- fmt.Errorf("failed to write attachment %q for ticket #%d: %w", att.Filename, id, err)
+					return
 				}
 			}()
 		}
@@ -122,8 +115,14 @@ func exportSingleTicket(client *trac.Client, ticketsDir string, id int, includeA
 		attWg.Wait()
 		close(attErrs)
 
-		if len(attErrs) > 0 {
-			return fmt.Errorf("some attachments failed for ticket #%d", id)
+		var errCount int
+		for err := range attErrs {
+			slog.Warn("Attachment error", "error", err)
+			errCount++
+		}
+
+		if errCount > 0 {
+			return fmt.Errorf("%d attachment(s) failed for ticket #%d", errCount, id)
 		}
 	}
 

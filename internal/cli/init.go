@@ -3,6 +3,8 @@ package cli
 import (
 	"trac2gitlab/internal/config"
 
+	"log/slog"
+
 	"github.com/spf13/cobra"
 )
 
@@ -12,13 +14,14 @@ var initCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		configExists := config.CheckConfigExists()
 		if configExists {
-			cmd.Println("Configuration already exists. Use 'trac2gitlab export' to start exporting data.")
+			slog.Info("Configuration already exists. Use 'trac2gitlab export' to start exporting data.")
 			return
 		}
 		if err := config.CreateDefaultConfig(); err != nil {
-			cmd.Println("❌ Failed to create default configuration:", err)
+			slog.Error("Failed to create default configuration", "errorMsg", err)
 			return
 		}
-		cmd.Println("Default configuration created successfully.")
+		slog.Info("Default configuration created successfully.")
+
 	},
 }

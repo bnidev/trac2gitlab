@@ -3,7 +3,7 @@ package exporter
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -11,23 +11,18 @@ import (
 )
 
 func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) error {
-	fmt.Println("Exporting wiki...")
+	slog.Info("Starting wiki export...")
 
 	pages, err := client.GetWikiPageNames()
 	if err != nil {
 		return fmt.Errorf("failed to get wiki page names: %w", err)
 	}
 	if len(pages) == 0 {
-		fmt.Println("No wiki pages found.")
+		slog.Info("No wiki pages found, skipping export.")
 		return nil
 	}
 
-	fmt.Printf("Found %d wiki page%s\n", len(pages), func() string {
-		if len(pages) == 1 {
-			return ""
-		}
-		return "s"
-	}())
+	slog.Debug("Wiki pages found", "count", len(pages))
 
 	wikiDir := filepath.Join(outDir, "wiki")
 	if err := os.MkdirAll(wikiDir, 0755); err != nil {
@@ -62,7 +57,7 @@ func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) err
 		return firstErr
 	}
 
-	fmt.Println("Wiki export complete.")
+	slog.Info("Wiki export completed", "count", len(pages))
 	return nil
 }
 
@@ -72,22 +67,22 @@ func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, to
 		return fmt.Errorf("failed to get wiki page info for %q: %w", pageName, err)
 	}
 
-	fmt.Printf("Exporting wiki page (%d/%d) %q ...\n", pageIndex+1, totalPages, pageName)
+	slog.Debug("Exporting wiki page", "current", pageIndex+1, "total", totalPages, "page", pageName)
+
 	for version := int64(1); version <= wikiMeta.Version; version++ {
-		// fmt.Printf("Exporting wiki page (%d/%d) %q version %d/%d...\n", pageIndex+1, totalPages, pageName, version, wikiMeta.Version)
 		content, err := client.GetWikiPageVersion(pageName, version)
 		if err != nil {
-			return fmt.Errorf("failed to get wiki page %q version %d: %w", pageName, version, err)
+			slog.Warn("Failed to get wiki page version", "page", pageName, "version", version, "error", err)
+			continue
 		}
 
 		if content == nil {
-			fmt.Printf("Warning: wiki page %q version %d is empty or not found\n", pageName, version)
+			slog.Warn("Wiki page version empty or not found", "page", pageName, "version", version)
 			continue
 		}
 
 		filename := filepath.Join(wikiDir, fmt.Sprintf("%s.v%d.md", pageName, version))
 
-		// Create directories for the wiki page
 		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 			return fmt.Errorf("failed to create directories for wiki page %q: %w", pageName, err)
 		}
@@ -97,20 +92,23 @@ func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, to
 		if err != nil {
 			return fmt.Errorf("failed to create file for wiki page %q version %d: %w", pageName, version, err)
 		}
+
 		if _, err := file.WriteString(*content); err != nil {
 			if cerr := file.Close(); cerr != nil {
-				return fmt.Errorf("failed to write content for wiki page %q version %d: %w (also failed to close file: %v)", pageName, version, err, cerr)
+				slog.Warn("Failed to close file for wiki page", "page", pageName, "version", version, "error", cerr)
 			}
 			return fmt.Errorf("failed to write content for wiki page %q version %d: %w", pageName, version, err)
 		}
+
 		if cerr := file.Close(); cerr != nil {
-			return fmt.Errorf("failed to close file for wiki page %q version %d: %w", pageName, version, cerr)
+			slog.Warn("Failed to close file for wiki page", "page", pageName, "version", version, "error", cerr)
 		}
 
 		// Write metadata to file
 		meta, err := client.GetWikiPageInfoVersion(pageName, version)
 		if err != nil {
-			return fmt.Errorf("failed to get wiki page info for %q version %d: %w", pageName, version, err)
+			slog.Warn("Failed to get wiki page metadata", "page", pageName, "version", version, "error", err)
+			continue
 		}
 
 		metaFile := filepath.Join(wikiDir, fmt.Sprintf("%s.v%d.json", pageName, version))
@@ -118,36 +116,42 @@ func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, to
 		if err != nil {
 			return fmt.Errorf("failed to create metadata file for wiki page %q version %d: %w", pageName, version, err)
 		}
+
 		if err := json.NewEncoder(metaFileHandle).Encode(meta); err != nil {
 			if cerr := metaFileHandle.Close(); cerr != nil {
-				return fmt.Errorf("failed to write metadata for wiki page %q version %d: %w (also failed to close file: %v)", pageName, version, err, cerr)
+				slog.Warn("Failed to close metadata file", "page", pageName, "version", version, "error", cerr)
 			}
 			return fmt.Errorf("failed to write metadata for wiki page %q version %d: %w", pageName, version, err)
 		}
+
 		if cerr := metaFileHandle.Close(); cerr != nil {
-			return fmt.Errorf("failed to close metadata file for wiki page %q version %d: %w", pageName, version, cerr)
+			slog.Warn("Failed to close metadata file", "page", pageName, "version", version, "error", cerr)
 		}
 	}
 
 	// Export attachments once per page
 	if len(wikiMeta.Attachments) > 0 && includeAttachments {
-		fmt.Printf("Exporting attachments for wiki page %s...\n", pageName)
+		slog.Debug("Exporting attachments for wiki page", "page", pageName, "count", len(wikiMeta.Attachments))
+
 		attachmentsDir := filepath.Join(wikiDir, "attachments", pageName)
 		if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
-			log.Printf("Warning: failed to create attachments directory for page %s: %v\n", pageName, err)
+			slog.Warn("Failed to create attachments directory", "page", pageName, "error", err)
 		} else {
 			for _, att := range wikiMeta.Attachments {
 				content, err := trac.GetAttachment(client, trac.ResourceWiki, pageName, att.Filename)
 				if err != nil {
-					log.Printf("Warning: failed to download attachment %q for page %s: %v\n", att.Filename, pageName, err)
+					slog.Warn("Failed to download attachment", "page", pageName, "filename", att.Filename, "error", err)
 					continue
 				}
 				safeFilename := filepath.Base(att.Filename)
 				attPath := filepath.Join(attachmentsDir, safeFilename)
 
 				if err := os.WriteFile(attPath, content, 0644); err != nil {
-					log.Printf("Warning: failed to write attachment %q for wiki %s: %v\n", att.Filename, pageName, err)
+					slog.Warn("Failed to write attachment", "page", pageName, "filename", att.Filename, "error", err)
+					continue
 				}
+
+				slog.Debug("Attachment written", "page", pageName, "filename", att.Filename)
 			}
 		}
 	}

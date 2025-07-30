@@ -3,7 +3,7 @@ package exporter
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"trac2gitlab/pkg/trac"
@@ -11,7 +11,7 @@ import (
 
 // ExportMilestones exports milestones from Trac and saves them as JSON files
 func ExportMilestones(client *trac.Client, outDir string) error {
-	fmt.Println("Exporting milestones...")
+	slog.Info("Starting milestone export...")
 
 	milestoneNames, err := client.GetMilestoneNames()
 	if err != nil {
@@ -23,38 +23,33 @@ func ExportMilestones(client *trac.Client, outDir string) error {
 		return fmt.Errorf("failed to create milestones directory: %w", err)
 	}
 
-	fmt.Printf("Found %d milestone%s\n", len(milestoneNames), func() string {
-		if len(milestoneNames) == 1 {
-			return ""
-		}
-		return "s"
-	}())
+	slog.Debug("Milestones found", "count", len(milestoneNames))
 
 	for _, name := range milestoneNames {
 		milestone, err := client.GetMilestoneByName(name)
 		if err != nil {
-			log.Printf("Warning: failed to fetch milestone %q: %v\n", name, err)
+			slog.Warn("Failed to fetch milestone", "name", name, "error", err)
 			continue
 		}
 
 		filename := filepath.Join(milestonesDir, fmt.Sprintf("milestone-%s.json", name))
 		file, err := os.Create(filename)
 		if err != nil {
-			log.Printf("Warning: failed to write milestone %q: %v\n", name, err)
+			slog.Warn("Failed to create milestone file", "name", name, "error", err)
 			continue
 		}
 
 		encoder := json.NewEncoder(file)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(milestone); err != nil {
-			log.Printf("Warning: failed to encode milestone %q: %v\n", name, err)
+			slog.Warn("Failed to encode milestone", "name", name, "error", err)
 		}
 
 		if cerr := file.Close(); cerr != nil {
-			log.Fatalf("Failed to close milestone file %q: %v", name, cerr)
+			slog.Warn("File closed with error", "name", name, "error", cerr)
 		}
 	}
 
-	fmt.Println("Milestone export complete.")
+	slog.Info("Milestone export completed", "count", len(milestoneNames))
 	return nil
 }

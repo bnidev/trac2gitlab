@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"log/slog"
 	"trac2gitlab/internal/config"
 	"trac2gitlab/internal/importer"
 	"trac2gitlab/pkg/gitlab"
@@ -13,28 +13,29 @@ var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Import exported data into GitLab",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Running migration to GitLab...")
+		slog.Info("Starting migration to GitLab...")
 		cfg := config.LoadConfig()
 		client, err := gitlab.NewGitLabClient(cfg.GitLab.BaseURL, cfg.GitLab.APIPath, cfg.GitLab.Token)
 		if err != nil {
-			fmt.Println("❌ Failed to create GitLab client:", err)
+			slog.Error("Failed to create GitLab client", "errorMsg", err)
+			return
 		}
 
 		if err = client.ValidateGitLab(); err != nil {
-			fmt.Println("❌ GitLab validation failed:", err)
+			slog.Error("GitLab validation failed", "errorMsg", err)
 			return
 		}
 
 		if cfg.ImportOptions.ImportMilestones {
 			if err = importer.ImportMilestones(client, cfg.GitLab.ProjectID); err != nil {
-				fmt.Println("❌ Import failed:", err)
+				slog.Error("Milestone import failed", "errorMsg", err)
 				return
 			}
 		}
 
 		if cfg.ImportOptions.ImportIssues {
 			if err = importer.ImportIssues(client, cfg.GitLab.ProjectID); err != nil {
-				fmt.Println("❌ Import failed:", err)
+				slog.Error("Issue import failed", "errorMsg", err)
 				return
 			}
 		}

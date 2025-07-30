@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"fmt"
+	"log/slog"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -13,7 +14,8 @@ func (c *Client) GetProjectList() error {
 		return err
 	}
 	for _, project := range projects {
-		fmt.Printf("Project ID: %d, Name: %s\n", project.ID, project.Name)
+
+		slog.Debug("Project found", "ID", project.ID, "Name", project.Name)
 	}
 	return nil
 }

@@ -1,8 +1,8 @@
 package importer
 
 import (
-	"fmt"
 	"trac2gitlab/pkg/gitlab"
+	"log/slog"
 )
 
 func ImportIssues(client *gitlab.Client, projectID any) error {
@@ -12,7 +12,7 @@ func ImportIssues(client *gitlab.Client, projectID any) error {
 		return err
 	}
 
-	fmt.Printf("Importing issues for project: %s (ID: %d)\n", project.Name, project.ID)
+	slog.Info("Starting issue import...", "project", project.Name, "projectID", project.ID)
 
 	return nil
 }

@@ -2,6 +2,7 @@ package trac
 
 import (
 	"fmt"
+	"log/slog"
 	"slices"
 	"trac2gitlab/pkg/xmlrpc"
 )
@@ -14,7 +15,7 @@ type Client struct {
 func NewTracClient(baseURL, rpcPath string) (*Client, error) {
 	url := fmt.Sprintf("%s%s", baseURL, rpcPath)
 
-	fmt.Printf("Connecting to Trac XML-RPC at %s\n", url)
+	slog.Debug("Creating Trac XML-RPC client", "url", url)
 
 	rpcClient, err := xmlrpc.NewClient(url, nil)
 	if err != nil {
@@ -55,7 +56,7 @@ func (c *Client) ValidateExpectedMethods() error {
 		}
 	}
 
-	fmt.Println("Trac XML-RPC plugin method validation successful. All expected methods are available.")
+	slog.Debug("Trac XML-RPC plugin method validation successful. All expected methods are available.")
 	return nil
 }
 
@@ -86,6 +87,7 @@ func (c *Client) ValidatePluginVersion() error {
 		)
 	}
 
-	fmt.Printf("Trac XML-RPC plugin version %d.%d.%d is compatible.\n", epoch, major, minor)
+	formattedVersion := fmt.Sprintf("%d.%d.%d", epoch, major, minor)
+	slog.Debug("Trac XML-RPC plugin version check successful", "version", formattedVersion)
 	return nil
 }
