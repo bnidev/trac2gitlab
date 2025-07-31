@@ -2,7 +2,6 @@ package trac
 
 import (
 	"fmt"
-	"slices"
 	"time"
 	"trac2gitlab/internal/utils"
 )
@@ -15,6 +14,7 @@ type Ticket struct {
 	Attributes  map[string]any
 	Attachments []Attachment
 	History     []ChangeLogEntry
+	Comments    []ChangeLogEntry
 }
 
 // GetAllTicketIDs queries Trac for all matching ticket IDs
@@ -64,7 +64,7 @@ func (c *Client) GetTicket(id int) (*Ticket, error) {
 		return nil, fmt.Errorf("failed to get attachments for ticket %d: %w", id, err)
 	}
 
-	history, err := c.GetTicketHistory(id)
+	descriptions, comments, err := c.GetTicketHistory(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ticket history for %d: %w", id, err)
 	}
@@ -75,7 +75,8 @@ func (c *Client) GetTicket(id int) (*Ticket, error) {
 		TimeChanged: timeChanged,
 		Attributes:  attributes,
 		Attachments: attachments,
-		History:     history,
+		History:     descriptions,
+		Comments:    comments,
 	}, nil
 }
 
@@ -84,31 +85,42 @@ type ChangeLogEntry struct {
 	Time      time.Time
 	Author    string
 	Field     string
-	OldValue  string
-	NewValue  string
+	OldValue  *string
+	NewValue  *string
 	Permanent int64
 }
 
-// GetTicketHistory retrieves the change log for a specific ticket ID
-func (c *Client) GetTicketHistory(id int) ([]ChangeLogEntry, error) {
+// GetTicketHistory retrieves the change log for a specific ticket ID,
+// returning description and comment entries separately.
+func (c *Client) GetTicketHistory(id int) ([]ChangeLogEntry, []ChangeLogEntry, error) {
 	var resp []any
 	err := c.rpc.Call("ticket.changeLog", []any{id}, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("ticket.changeLog call failed: %w", err)
+		return nil, nil, fmt.Errorf("ticket.changeLog call failed: %w", err)
 	}
-	entries := make([]ChangeLogEntry, len(resp))
+
+	var descriptions []ChangeLogEntry
+	var comments []ChangeLogEntry
+
 	for i, item := range resp {
 		fields, ok := item.([]any)
 		if !ok || len(fields) != 6 {
-			return nil, fmt.Errorf("unexpected changelog format at index %d", i)
+			return nil, nil, fmt.Errorf("unexpected changelog format at index %d", i)
 		}
 
 		time, _ := utils.ParseRequiredTracTime(fields[0])
 
-		oldValue := utils.TracToMarkdown(fmt.Sprintf("%v", fields[3]))
-		newValue := utils.TracToMarkdown(fmt.Sprintf("%v", fields[4]))
+		var oldValue, newValue *string
+		if fields[3] != nil {
+			val := utils.TracToMarkdown(fmt.Sprintf("%v", fields[3]))
+			oldValue = &val
+		}
+		if fields[4] != nil {
+			val := utils.TracToMarkdown(fmt.Sprintf("%v", fields[4]))
+			newValue = &val
+		}
 
-		entries[i] = ChangeLogEntry{
+		entry := ChangeLogEntry{
 			Time:      time,
 			Author:    fmt.Sprintf("%v", fields[1]),
 			Field:     fmt.Sprintf("%v", fields[2]),
@@ -116,15 +128,14 @@ func (c *Client) GetTicketHistory(id int) ([]ChangeLogEntry, error) {
 			NewValue:  newValue,
 			Permanent: fields[5].(int64),
 		}
-	}
 
-	for i := 0; i < len(entries); {
-		if entries[i].Field != "description" {
-			entries = slices.Delete(entries, i, i+1)
-		} else {
-			i++
+		switch entry.Field {
+		case "description":
+			descriptions = append(descriptions, entry)
+		case "comment":
+			comments = append(comments, entry)
 		}
 	}
 
-	return entries, nil
+	return descriptions, comments, nil
 }
