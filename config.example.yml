@@ -4,11 +4,18 @@ trac:
 
 gitlab:
   base_url: https://gitlab.example.com
+  api_path: /api/v4
   token: your-token-here
   project_id: 123
 
-options:
-  include_wiki: true
-  include_attachments: true
-  include_ticket_history: true
-  include_closed_tickets: false
+export_options:
+    include_wiki: true
+    include_attachments: true
+    include_ticket_history: true
+    include_closed_tickets: true
+    include_users: true
+    export_dir: data
+
+import_options:
+    import_issues: true
+    import_milestones: true
