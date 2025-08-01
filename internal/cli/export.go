@@ -49,6 +49,12 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
+		if cfg.ExportOptions.IncludeUsers {
+			if err := exporter.ExportUsers(client, "data"); err != nil {
+				slog.Error("User export failed", "errorMsg", err)
+			}
+		}
+
 		elapsed := time.Since(start)
 		slog.Info("Export completed successfully", "duration", elapsed)
 	},

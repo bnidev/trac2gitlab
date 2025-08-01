@@ -35,6 +35,7 @@ type ExportOptions struct {
 	IncludeAttachments   bool   `yaml:"include_attachments"`
 	IncludeTicketHistory bool   `yaml:"include_ticket_history"`
 	IncludeClosedTickets bool   `yaml:"include_closed_tickets"`
+	IncludeUsers         bool   `yaml:"include_users"`
 	ExportDir            string `yaml:"export_dir"`
 }
 
@@ -93,6 +94,7 @@ func CreateDefaultConfig() error {
 			IncludeAttachments:   true,
 			IncludeTicketHistory: true,
 			IncludeClosedTickets: true,
+			IncludeUsers:         true,
 			ExportDir:            "data",
 		},
 		ImportOptions: ImportOptions{
