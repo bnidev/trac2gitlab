@@ -78,6 +78,11 @@ func LoadConfig() (Config, error) {
 		slog.Warn("GitLab configuration is incomplete. Please check your config.yaml file.")
 	}
 
+	if cfg.ExportOptions.ExportDir == "" {
+		slog.Warn("Export directory is not set. Defaulting to 'data'.")
+		cfg.ExportOptions.ExportDir = "data"
+	}
+
 	return cfg, nil
 }
 
