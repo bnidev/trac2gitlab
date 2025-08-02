@@ -14,7 +14,12 @@ var migrateCmd = &cobra.Command{
 	Short: "Import exported data into GitLab",
 	Run: func(cmd *cobra.Command, args []string) {
 		slog.Info("Starting migration to GitLab...")
-		cfg := config.LoadConfig()
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			slog.Error("Failed to load configuration", "errorMsg", err)
+			return
+		}
+
 		client, err := gitlab.NewGitLabClient(cfg.GitLab.BaseURL, cfg.GitLab.APIPath, cfg.GitLab.Token)
 		if err != nil {
 			slog.Error("Failed to create GitLab client", "errorMsg", err)
@@ -39,6 +44,5 @@ var migrateCmd = &cobra.Command{
 				return
 			}
 		}
-
 	},
 }

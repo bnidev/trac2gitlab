@@ -1,7 +1,8 @@
 package config
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -46,28 +47,38 @@ type ImportOptions struct {
 }
 
 // LoadConfig reads the configuration from config.yaml
-func LoadConfig() Config {
+func LoadConfig() (Config, error) {
+	var cfg Config
+
 	if !CheckConfigExists() {
-		log.Fatal("Configuration file config.yaml does not exist. Please run 'trac2gitlab init' to create it.")
+		return cfg, fmt.Errorf("configuration file config.yaml does not exist")
 	}
 
 	f, err := os.Open("config.yaml")
 	if err != nil {
-		log.Fatalf("Failed to open config.yaml: %v", err)
+		return Config{}, fmt.Errorf("failed to open config.yaml: %w", err)
 	}
 
 	defer func() {
 		if cerr := f.Close(); cerr != nil {
-			log.Fatalf("Failed to close config.yaml: %v", cerr)
+			slog.Warn("Error closing config.yaml", "errorMsg", cerr)
 		}
 	}()
 
-	var cfg Config
 	decoder := yaml.NewDecoder(f)
 	if err := decoder.Decode(&cfg); err != nil {
-		log.Fatalf("Failed to parse config.yaml: %v", err)
+		return cfg, fmt.Errorf("failed to parse config.yaml: %w", err)
 	}
-	return cfg
+
+	if cfg.Trac.BaseURL == "" || cfg.Trac.RPCPath == "" {
+		slog.Warn("Trac configuration is incomplete. Please check your config.yaml file.")
+	}
+
+	if cfg.GitLab.BaseURL == "" || cfg.GitLab.APIPath == "" || cfg.GitLab.Token == "" || cfg.GitLab.ProjectID <= 0 {
+		slog.Warn("GitLab configuration is incomplete. Please check your config.yaml file.")
+	}
+
+	return cfg, nil
 }
 
 // CheckConfigExists checks if the configuration file exists

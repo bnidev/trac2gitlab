@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"time"
 	"log/slog"
+	"time"
 	"trac2gitlab/internal/config"
 	"trac2gitlab/internal/exporter"
 	"trac2gitlab/pkg/trac"
@@ -14,7 +14,12 @@ var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export tickets, wiki, users, and attachments from Trac",
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.LoadConfig()
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			slog.Error("Failed to load configuration", "errorMsg", err)
+			return
+		}
+
 		client, err := trac.NewTracClient(cfg.Trac.BaseURL, cfg.Trac.RPCPath)
 		if err != nil {
 			slog.Error("Failed to create Trac client", "errorMsg", err)
