@@ -20,7 +20,7 @@ var exportCmd = &cobra.Command{
 			return
 		}
 
-		client, err := trac.NewTracClient(cfg.Trac.BaseURL, cfg.Trac.RPCPath)
+		client, err := trac.NewTracClient(&cfg)
 		if err != nil {
 			slog.Error("Failed to create Trac client", "errorMsg", err)
 			return
@@ -40,22 +40,22 @@ var exportCmd = &cobra.Command{
 
 		start := time.Now()
 
-		if err := exporter.ExportTickets(client, "data", cfg.ExportOptions.IncludeClosedTickets, cfg.ExportOptions.IncludeAttachments); err != nil {
+		if err := exporter.ExportTickets(client, &cfg); err != nil {
 			slog.Error("Ticket export failed", "errorMsg", err)
 		}
 
-		if err := exporter.ExportMilestones(client, "data"); err != nil {
+		if err := exporter.ExportMilestones(client, &cfg); err != nil {
 			slog.Error("Milestone export failed", "errorMsg", err)
 		}
 
 		if cfg.ExportOptions.IncludeWiki {
-			if err := exporter.ExportWiki(client, "data", cfg.ExportOptions.IncludeAttachments); err != nil {
+			if err := exporter.ExportWiki(client, &cfg); err != nil {
 				slog.Error("Wiki export failed", "errorMsg", err)
 			}
 		}
 
 		if cfg.ExportOptions.IncludeUsers {
-			if err := exporter.ExportUsers(client, "data"); err != nil {
+			if err := exporter.ExportUsers(client, &cfg); err != nil {
 				slog.Error("User export failed", "errorMsg", err)
 			}
 		}

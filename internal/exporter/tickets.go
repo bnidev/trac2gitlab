@@ -7,15 +7,16 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/pkg/trac"
 )
 
 // ExportTickets exports tickets from Trac and saves them as JSON files
-func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool, includeAttachments bool) error {
+func ExportTickets(client *trac.Client, config *config.Config) error {
 	slog.Info("Starting ticket export...")
 
 	query := "max=0"
-	if !includeClosedTickets {
+	if !config.ExportOptions.IncludeClosedTickets {
 		query += "&status!=closed"
 	}
 
@@ -24,7 +25,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 		return fmt.Errorf("failed to get ticket IDs: %w", err)
 	}
 
-	ticketsDir := filepath.Join(outDir, "tickets")
+	ticketsDir := filepath.Join(config.ExportOptions.ExportDir, "tickets")
 	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create tickets directory: %w", err)
 	}
@@ -40,7 +41,7 @@ func ExportTickets(client *trac.Client, outDir string, includeClosedTickets bool
 		go func() {
 			defer wg.Done()
 			for id := range ticketChan {
-				if err := exportSingleTicket(client, ticketsDir, id, includeAttachments); err != nil {
+				if err := exportSingleTicket(client, ticketsDir, id, config.ExportOptions.IncludeAttachments); err != nil {
 					slog.Error("Failed to export ticket", "ticketID", id, "error", err)
 				}
 			}

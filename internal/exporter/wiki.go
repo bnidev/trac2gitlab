@@ -7,10 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/pkg/trac"
 )
 
-func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) error {
+func ExportWiki(client *trac.Client, config *config.Config) error {
 	slog.Info("Starting wiki export...")
 
 	pages, err := client.GetWikiPageNames()
@@ -24,7 +25,7 @@ func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) err
 
 	slog.Debug("Wiki pages found", "count", len(pages))
 
-	wikiDir := filepath.Join(outDir, "wiki")
+	wikiDir := filepath.Join(config.ExportOptions.ExportDir, "wiki")
 	if err := os.MkdirAll(wikiDir, 0755); err != nil {
 		return fmt.Errorf("failed to create wiki directory: %w", err)
 	}
@@ -42,7 +43,7 @@ func ExportWiki(client *trac.Client, outDir string, includeAttachments bool) err
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			if err := exportWikiPage(client, wikiDir, pName, idx, len(pages), includeAttachments); err != nil {
+			if err := exportWikiPage(client, wikiDir, pName, idx, len(pages), config.ExportOptions.IncludeAttachments); err != nil {
 				mu.Lock()
 				if firstErr == nil {
 					firstErr = err

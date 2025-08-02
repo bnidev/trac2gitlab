@@ -6,10 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/pkg/trac"
 )
 
-func ExportUsers(client *trac.Client, outDir string) error {
+func ExportUsers(client *trac.Client, config *config.Config) error {
 	ids, err := client.GetAllTicketIDs("max=0")
 	if err != nil {
 		return fmt.Errorf("failed to get ticket IDs: %w", err)
@@ -48,10 +49,10 @@ func ExportUsers(client *trac.Client, outDir string) error {
 
 	}
 
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(config.ExportOptions.ExportDir, 0755); err != nil {
 		return fmt.Errorf("failed to create tickets directory: %w", err)
 	}
-	usersFile := filepath.Join(outDir, "users.txt")
+	usersFile := filepath.Join(config.ExportOptions.ExportDir, "users.txt")
 	file, err := os.Create(usersFile)
 	if err != nil {
 		return fmt.Errorf("failed to create users file: %w", err)

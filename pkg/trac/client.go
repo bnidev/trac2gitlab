@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/pkg/xmlrpc"
 )
 
@@ -12,8 +13,8 @@ type Client struct {
 }
 
 // NewTracClient creates a new Trac XML-RPC client.
-func NewTracClient(baseURL, rpcPath string) (*Client, error) {
-	url := fmt.Sprintf("%s%s", baseURL, rpcPath)
+func NewTracClient(config *config.Config) (*Client, error) {
+	url := fmt.Sprintf("%s%s", config.Trac.BaseURL, config.Trac.RPCPath)
 
 	slog.Debug("Creating Trac XML-RPC client", "url", url)
 

@@ -6,11 +6,12 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/pkg/trac"
 )
 
 // ExportMilestones exports milestones from Trac and saves them as JSON files
-func ExportMilestones(client *trac.Client, outDir string) error {
+func ExportMilestones(client *trac.Client, config *config.Config) error {
 	slog.Info("Starting milestone export...")
 
 	milestoneNames, err := client.GetMilestoneNames()
@@ -18,7 +19,7 @@ func ExportMilestones(client *trac.Client, outDir string) error {
 		return fmt.Errorf("failed to get milestone names: %w", err)
 	}
 
-	milestonesDir := filepath.Join(outDir, "milestones")
+	milestonesDir := filepath.Join(config.ExportOptions.ExportDir, "milestones")
 	if err := os.MkdirAll(milestonesDir, 0755); err != nil {
 		return fmt.Errorf("failed to create milestones directory: %w", err)
 	}
