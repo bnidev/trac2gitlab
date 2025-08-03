@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"trac2gitlab/internal/config"
 
-	"gitlab.com/gitlab-org/api/client-go"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 type Client struct {
@@ -13,25 +14,24 @@ type Client struct {
 }
 
 // NewGitLabClient creates a new GitLab API client.
-func NewGitLabClient(baseURL, apiPath string, accessToken string) (*Client, error) {
-	url := fmt.Sprintf("%s%s", baseURL, apiPath)
+func NewGitLabClient(config *config.Config) (*Client, error) {
+	url := fmt.Sprintf("%s%s", config.GitLab.BaseURL, config.GitLab.BaseURL)
 
 	slog.Debug("Creating GitLab API client", "url", url)
 
-	git, err := gitlab.NewClient(accessToken, gitlab.WithBaseURL(url))
+	git, err := gitlab.NewClient(config.GitLab.Token, gitlab.WithBaseURL(url))
 	if err != nil {
 		return nil, err
-
 	}
 	return &Client{git: git}, nil
 }
 
 type Version struct {
-	Version string `json:"version"`
+	Version  string `json:"version"`
 	Revision string `json:"revision"`
 }
 
-func (c* Client) GetVersion() (*Version, error) {
+func (c *Client) GetVersion() (*Version, error) {
 	var version *Version
 	versionRaw, _, err := c.git.Version.GetVersion()
 	if err != nil {
@@ -43,7 +43,6 @@ func (c* Client) GetVersion() (*Version, error) {
 	}
 	return version, nil
 }
-
 
 func (c *Client) ValidateGitLab() error {
 	slog.Debug("Validating GitLab connection...")

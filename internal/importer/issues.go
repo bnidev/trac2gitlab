@@ -5,20 +5,21 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/internal/utils"
 	"trac2gitlab/pkg/gitlab"
 )
 
-func ImportIssues(client *gitlab.Client, projectID any) error {
+func ImportIssues(client *gitlab.Client, config *config.Config) error {
 
-	project, err := client.GetProject(projectID)
+	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
 		return err
 	}
 
 	slog.Info("Starting issue import...", "project", project.Name, "projectID", project.ID)
 
-	existingIssues, err := client.ListProjectIssues(projectID)
+	existingIssues, err := client.ListProjectIssues(project.ID)
 	if err != nil {
 		return fmt.Errorf("failed to list existing issues: %w", err)
 	}
@@ -26,7 +27,7 @@ func ImportIssues(client *gitlab.Client, projectID any) error {
 	if len(existingIssues) > 0 {
 		slog.Debug("Existing issues found", "count", len(existingIssues))
 	} else {
-		slog.Debug("No existing issues found for project", "projectID", projectID)
+		slog.Debug("No existing issues found for project", "projectID", project.ID)
 	}
 
 	fmt.Printf("Importing issues for project: %s (ID: %d)\n", project.Name, project.ID)
@@ -37,17 +38,17 @@ func ImportIssues(client *gitlab.Client, projectID any) error {
 	}
 
 	for _, issueData := range issues {
-		flat, err := ConvertToFlatIssue(issueData, client, projectID)
+		flat, err := ConvertToFlatIssue(issueData, client, project.ID)
 		if err != nil {
 			return fmt.Errorf("failed to process issue: %w", err)
 		}
 
 
-		if existingIssue, err := client.GetIssue(projectID, flat.ID); err != nil {
+		if existingIssue, err := client.GetIssue(project.ID, flat.ID); err != nil {
 			slog.Debug("Importing new issue", "ID", flat.ID, "Title", flat.Title)
 
 			// Create the issue in GitLab
-			_, err := client.CreateIssue(projectID, &gitlab.CreateIssueOptions{
+			_, err := client.CreateIssue(project.ID, &gitlab.CreateIssueOptions{
 				IID:         &flat.ID,
 				Title:       &flat.Title,
 				Description: &flat.Description,
@@ -62,7 +63,7 @@ func ImportIssues(client *gitlab.Client, projectID any) error {
 			if flat.Status == "closed" {
 				slog.Debug("Setting issue status to closed", "ID", flat.ID, "Title", flat.Title)
 				var stateEvent = "close"
-				_, err = client.UpdateIssue(projectID, flat.ID, &gitlab.UpdateIssueOptions{
+				_, err = client.UpdateIssue(project.ID, flat.ID, &gitlab.UpdateIssueOptions{
 					StateEvent: &stateEvent,
 				})
 				if err != nil {
@@ -117,7 +118,7 @@ func ImportIssues(client *gitlab.Client, projectID any) error {
 				slog.Debug("Updating existing issue", "ID", flat.ID, "Title", flat.Title)
 
 				updateOpts.UpdatedAt = flat.UpdatedAt
-				_, err := client.UpdateIssue(projectID, flat.ID, updateOpts)
+				_, err := client.UpdateIssue(config.GitLab.ProjectID, flat.ID, updateOpts)
 				if err != nil {
 					fmt.Print(updateOpts)
 					return fmt.Errorf("failed to update issue %d: %w", flat.ID, err)

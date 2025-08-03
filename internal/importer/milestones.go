@@ -5,22 +5,23 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+	"trac2gitlab/internal/config"
 	"trac2gitlab/internal/utils"
 	"trac2gitlab/pkg/gitlab"
 
 	gitlabClient "gitlab.com/gitlab-org/api/client-go"
 )
 
-func ImportMilestones(client *gitlab.Client, projectID any) error {
+func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 
-	project, err := client.GetProject(projectID)
+	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
 		return err
 	}
 
 	slog.Info("Starting milestone import...", "project", project.Name, "projectID", project.ID)
 
-	existingMilestones, err := client.ListMilestones(projectID, nil)
+	existingMilestones, err := client.ListMilestones(project.ID, nil)
 	if err != nil {
 		return fmt.Errorf("failed to list existing milestones: %w", err)
 	}
@@ -28,7 +29,7 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 	if len(existingMilestones) > 0 {
 		slog.Debug("Existing milestones found", "count", len(existingMilestones))
 	} else {
-		slog.Debug("No existing milestones found for project", "projectID", projectID)
+		slog.Debug("No existing milestones found for project", "projectID", project.ID)
 	}
 
 	fmt.Printf("Importing milestones for project: %s (ID: %d)\n", project.Name, project.ID)
@@ -102,7 +103,7 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 
 					if needsUpdate {
 						slog.Debug("Updating existing milestone", "title", existing.Title, "id", existing.ID)
-						_, err = client.UpdateMilestone(projectID, existing.ID, updateOpts)
+						_, err = client.UpdateMilestone(project.ID, existing.ID, updateOpts)
 						if err != nil {
 							return fmt.Errorf("failed to update milestone: %w", err)
 						}
@@ -123,7 +124,7 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 				DueDate:     (*gitlab.ISOTime)(&dueDate),
 			}
 
-			milestone, err := client.CreateMilestone(projectID, opts)
+			milestone, err := client.CreateMilestone(project.ID, opts)
 			if err != nil {
 				return fmt.Errorf("failed to create milestone: %s", err)
 			}
@@ -137,7 +138,7 @@ func ImportMilestones(client *gitlab.Client, projectID any) error {
 				updateOpts := &gitlab.UpdateMilestoneOptions{
 					StateEvent: &stateEvent,
 				}
-				_, err = client.UpdateMilestone(projectID, milestone.ID, updateOpts)
+				_, err = client.UpdateMilestone(project.ID, milestone.ID, updateOpts)
 				if err != nil {
 					slog.Error("Failed to close milestone", "title", milestone.Title, "id", milestone.ID, "error", err)
 				} else {

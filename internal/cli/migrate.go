@@ -20,7 +20,7 @@ var migrateCmd = &cobra.Command{
 			return
 		}
 
-		client, err := gitlab.NewGitLabClient(cfg.GitLab.BaseURL, cfg.GitLab.APIPath, cfg.GitLab.Token)
+		client, err := gitlab.NewGitLabClient(&cfg)
 		if err != nil {
 			slog.Error("Failed to create GitLab client", "errorMsg", err)
 			return
@@ -32,14 +32,14 @@ var migrateCmd = &cobra.Command{
 		}
 
 		if cfg.ImportOptions.ImportMilestones {
-			if err = importer.ImportMilestones(client, cfg.GitLab.ProjectID); err != nil {
+			if err = importer.ImportMilestones(client, &cfg); err != nil {
 				slog.Error("Milestone import failed", "errorMsg", err)
 				return
 			}
 		}
 
 		if cfg.ImportOptions.ImportIssues {
-			if err = importer.ImportIssues(client, cfg.GitLab.ProjectID); err != nil {
+			if err = importer.ImportIssues(client, &cfg); err != nil {
 				slog.Error("Issue import failed", "errorMsg", err)
 				return
 			}
