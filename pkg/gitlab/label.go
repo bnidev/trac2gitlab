@@ -4,6 +4,43 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+type Color struct {
+	Name     string
+	HexValue string
+}
+
+var Colors = struct {
+	MagentaPink    Color
+	Crimson        Color
+	RoseRed        Color
+	DarkCoral      Color
+	CarrotOrange   Color
+	TitaniumYellow Color
+	GreenCyan      Color
+	DarkSeaGreen   Color
+	BlueGray       Color
+	Lavender       Color
+	DarkViolet     Color
+	DeepViolet     Color
+	CharcoalGrey   Color
+	Gray           Color
+}{
+	MagentaPink:    Color{Name: "Magenta-pink", HexValue: "#cc338b"},
+	Crimson:        Color{Name: "Crimson", HexValue: "#dc143c"},
+	RoseRed:        Color{Name: "Rose red", HexValue: "#c21e56"},
+	DarkCoral:      Color{Name: "Dark coral", HexValue: "#cd5b45"},
+	CarrotOrange:   Color{Name: "Carrot orange", HexValue: "#ed9121"},
+	TitaniumYellow: Color{Name: "Titanium yellow", HexValue: "#eee600"},
+	GreenCyan:      Color{Name: "Green-cyan", HexValue: "#009966"},
+	DarkSeaGreen:   Color{Name: "Dark sea green", HexValue: "#8fbc8f"},
+	BlueGray:       Color{Name: "Blue-gray", HexValue: "#6699cc"},
+	Lavender:       Color{Name: "Lavender", HexValue: "#e6e6fa"},
+	DarkViolet:     Color{Name: "Dark violet", HexValue: "#9400d3"},
+	DeepViolet:     Color{Name: "Deep violet", HexValue: "#330066"},
+	CharcoalGrey:   Color{Name: "Charcoal grey", HexValue: "#36454f"},
+	Gray:           Color{Name: "Gray", HexValue: "#808080"},
+}
+
 type Label = gitlab.Label
 
 func (c *Client) GetProjectLabels(projectID int) ([]*Label, error) {
