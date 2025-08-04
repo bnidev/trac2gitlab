@@ -64,7 +64,7 @@ func (c *Client) CreateLabel(projectID int, opts *gitlab.CreateLabelOptions) (*L
 	return label, nil
 }
 
-func (c* Client) GetLabelByID(projectID int, labelID int) (*Label, error) {
+func (c *Client) GetLabelByID(projectID int, labelID int) (*Label, error) {
 	label, _, err := c.git.Labels.GetLabel(projectID, labelID)
 	if err != nil {
 		return nil, err
