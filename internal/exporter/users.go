@@ -47,6 +47,45 @@ func ExportUsers(client *trac.Client, config *config.Config) error {
 			}
 		}
 
+		for _, comment := range ticket.Comments {
+			if comment.Author == "" {
+				slog.Debug("Skipping empty comment author", "ticketID", id)
+				continue
+			}
+			if !slices.Contains(users, comment.Author) {
+				users = append(users, comment.Author)
+				slog.Debug("Found new user in comment", "user", comment.Author, "ticketID", id)
+			} else {
+				slog.Debug("User already exists in comments", "user", comment.Author, "ticketID", id)
+			}
+		}
+
+		for _, attachment := range ticket.Attachments {
+			if attachment.Author == "" {
+				slog.Debug("Skipping empty attachment author", "ticketID", id)
+				continue
+			}
+			if !slices.Contains(users, attachment.Author) {
+				users = append(users, attachment.Author)
+				slog.Debug("Found new user in attachment", "user", attachment.Author, "ticketID", id)
+			} else {
+				slog.Debug("User already exists in attachments", "user", attachment.Author, "ticketID", id)
+			}
+		}
+
+		for _, history := range ticket.History {
+			if history.Author == "" {
+				slog.Debug("Skipping empty history author", "ticketID", id)
+				continue
+			}
+			if !slices.Contains(users, history.Author) {
+				users = append(users, history.Author)
+				slog.Debug("Found new user in history", "user", history.Author, "ticketID", id)
+			} else {
+				slog.Debug("User already exists in history", "user", history.Author, "ticketID", id)
+			}
+		}
+
 	}
 
 	if err := os.MkdirAll(config.ExportOptions.ExportDir, 0755); err != nil {
