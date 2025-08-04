@@ -53,6 +53,9 @@ func (c *Client) GetProjectLabels(projectID int) ([]*Label, error) {
 }
 
 func (c *Client) CreateLabel(projectID int, opts *gitlab.CreateLabelOptions) (*Label, error) {
+	if opts.Color == nil {
+		opts.Color = &Colors.Gray.HexValue
+	}
 	label, _, err := c.git.Labels.CreateLabel(projectID, opts)
 	if err != nil {
 		return nil, err
