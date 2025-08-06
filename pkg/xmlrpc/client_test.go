@@ -12,7 +12,11 @@ func TestNewClient_BasicCallBehavior(t *testing.T) {
 	// Create a fake XML-RPC server that returns a known response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				t.Errorf("failed to close request body: %v", err)
+			}
+		}()
 
 		if !bytes.Contains(body, []byte("sample.method")) {
 			t.Errorf("expected method 'sample.method' in request body, got: %s", body)
@@ -29,7 +33,9 @@ func TestNewClient_BasicCallBehavior(t *testing.T) {
 </methodResponse>`
 		w.Header().Set("Content-Type", "text/xml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
+		if _, err := w.Write([]byte(response)); err != nil {
+			t.Errorf("failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
