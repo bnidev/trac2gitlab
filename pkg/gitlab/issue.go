@@ -1,7 +1,7 @@
 package gitlab
 
 import (
-	"gitlab.com/gitlab-org/api/client-go"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 type Issue = gitlab.Issue
@@ -33,7 +33,6 @@ func (c *Client) UpdateIssue(projectID any, issueID int, opts *gitlab.UpdateIssu
 	}
 	return issue, nil
 }
-
 
 func (c *Client) ListProjectIssues(projectID any) ([]*Issue, error) {
 	issues, _, err := c.git.Issues.ListProjectIssues(projectID, &gitlab.ListProjectIssuesOptions{})

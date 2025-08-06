@@ -71,7 +71,7 @@ func styledLevel(level slog.Level) (string, lipgloss.Style) {
 	}
 
 	style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(code))
-	return style.Render("["+level.String()+"]"), style
+	return style.Render("[" + level.String() + "]"), style
 }
 
 func parseLevel(s string) slog.Level {

@@ -122,7 +122,7 @@ func (c *Client) GetImpersonationTokens(userID int) ([]*gitlab.ImpersonationToke
 	return tokens, nil
 }
 
-func (c* Client) RevokeAllImpersonationTokens(userID int) error {
+func (c *Client) RevokeAllImpersonationTokens(userID int) error {
 	tokens, err := c.GetImpersonationTokens(userID)
 	if err != nil {
 		return fmt.Errorf("failed to get impersonation tokens for user %d: %w", userID, err)

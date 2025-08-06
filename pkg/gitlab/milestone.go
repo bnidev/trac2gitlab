@@ -3,7 +3,7 @@ package gitlab
 import (
 	"time"
 
-	"gitlab.com/gitlab-org/api/client-go"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 type ISOTime time.Time
@@ -19,7 +19,6 @@ func (c *Client) ListMilestones(projectID any, opts *ListMilestonesOptions) ([]*
 
 	return milestones, nil
 }
-
 
 type Milestone = gitlab.Milestone
 

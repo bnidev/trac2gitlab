@@ -43,7 +43,6 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 			return fmt.Errorf("failed to process issue: %w", err)
 		}
 
-
 		if existingIssue, err := client.GetIssue(project.ID, flat.ID); err != nil {
 			slog.Debug("Importing new issue", "ID", flat.ID, "Title", flat.Title)
 
@@ -144,7 +143,7 @@ type IssueRaw struct {
 		Reporter    string `json:"reporter"`
 		Description string `json:"description"`
 		Status      string `json:"status"`
-		Milestone  string `json:"milestone"`
+		Milestone   string `json:"milestone"`
 	} `json:"Attributes"`
 }
 
@@ -156,7 +155,7 @@ type IssueFlat struct {
 	UpdatedAt   *time.Time
 	Owner       string
 	Status      string
-	MileStoneID  int
+	MileStoneID int
 }
 
 func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*IssueFlat, error) {

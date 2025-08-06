@@ -58,4 +58,3 @@ func (c *Client) GetMilestoneByName(name string) (*Milestone, error) {
 
 	return m, nil
 }
-

@@ -18,12 +18,12 @@ func (c *Client) GetWikiPageNames() ([]string, error) {
 
 // WikiPage represents metadata for a wiki page
 type WikiPage struct {
-    Author       string     `json:"author"`
-    Comment      *string    `json:"comment"`
-    LastModified time.Time  `json:"lastModified"`
-    Name         string     `json:"name"`
-    Version      int64        `json:"version"`
-		Attachments  []Attachment `json:"attachments,omitempty"`
+	Author       string       `json:"author"`
+	Comment      *string      `json:"comment"`
+	LastModified time.Time    `json:"lastModified"`
+	Name         string       `json:"name"`
+	Version      int64        `json:"version"`
+	Attachments  []Attachment `json:"attachments,omitempty"`
 }
 
 // GetWikiPage retrieves the content of a wiki page
