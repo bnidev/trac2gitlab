@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "🔍 Running pre-commit checks..."
+
+# Get staged Go files only
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -z "$STAGED_GO_FILES" ]; then
+  echo "No staged Go files to check."
+  exit 0
+fi
+
+echo "Checking files:"
+echo "$STAGED_GO_FILES"
+
+# Run goimports (format check) on staged files directly
+UNFORMATTED=$(echo "$STAGED_GO_FILES" | xargs goimports -l)
+
+if [ -n "$UNFORMATTED" ]; then
+  echo "❌ These files are not properly formatted or have import issues:"
+  echo "$UNFORMATTED"
+  echo "💡 Run: make format"
+  exit 1
+fi
+
+echo "✅ Formatting check passed."
+
+# Get all directories with staged .go files
+STAGED_GO_DIRS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' | xargs -n1 dirname | sort -u)
+
+# Run golangci-lint per package
+for dir in $STAGED_GO_DIRS; do
+  echo "🔎 Linting package: $dir"
+  if ! golangci-lint run "$dir"; then
+    echo "❌ Linting failed in $dir"
+    exit 1
+  fi
+done
+
+echo "✅ Linting passed."
+echo "🎉 All pre-commit checks passed."

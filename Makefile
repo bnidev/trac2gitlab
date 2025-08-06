@@ -18,3 +18,19 @@ test:
 
 clean:
 	rm -rf build
+
+format:
+	goimports -l -w .
+
+format-check:
+	@goimports -l . | tee /dev/stderr
+
+lint:
+	golangci-lint run ./...
+
+install:
+	git config --local core.hooksPath .githooks || echo "Not in a Git repo?"
+	go mod tidy
+	go install golang.org/x/tools/cmd/goimports@v0.35.0
+	command -v golangci-lint >/dev/null 2>&1 || \
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(HOME)/.local/bin v2.3.1
