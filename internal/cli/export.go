@@ -40,6 +40,12 @@ var exportCmd = &cobra.Command{
 
 		start := time.Now()
 
+		if cfg.ExportOptions.IncludeTicketFields {
+			if err := exporter.ExportTicketFields(client, &cfg); err != nil {
+				slog.Error("Ticket fields export failed", "errorMsg", err)
+			}
+		}
+
 		if err := exporter.ExportTickets(client, &cfg); err != nil {
 			slog.Error("Ticket export failed", "errorMsg", err)
 		}
