@@ -15,7 +15,7 @@ type Client struct {
 
 // NewGitLabClient creates a new GitLab API client.
 func NewGitLabClient(config *config.Config) (*Client, error) {
-	url := fmt.Sprintf("%s%s", config.GitLab.BaseURL, config.GitLab.BaseURL)
+	url := fmt.Sprintf("%s%s", config.GitLab.BaseURL, config.GitLab.APIPath)
 
 	slog.Debug("Creating GitLab API client", "url", url)
 
