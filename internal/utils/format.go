@@ -148,3 +148,37 @@ func GetInt64(v any) int64 {
 		return 0
 	}
 }
+
+func GetBool(v any) bool {
+	if v == nil {
+		return false
+	}
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	return false
+}
+
+
+func GetInt(v any) int {
+	if v == nil {
+		return 0
+	}
+	if f, ok := v.(float64); ok {
+		return int(f)
+	}
+	return 0
+}
+
+func GetStringSlice(v any) []string {
+	if arr, ok := v.([]any); ok {
+		result := make([]string, 0, len(arr))
+		for _, item := range arr {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		return result
+	}
+	return nil
+}
