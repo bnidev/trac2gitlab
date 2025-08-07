@@ -139,3 +139,40 @@ func (c *Client) GetTicketHistory(id int) ([]ChangeLogEntry, []ChangeLogEntry, e
 
 	return descriptions, comments, nil
 }
+
+type TicketField struct {
+	Label      string   `json:"label"`
+	Name       string   `json:"name"`
+	InputType  string   `json:"type"`
+	Format     string   `json:"format,omitempty"`
+	Options    []string `json:"options,omitempty"`
+	TicketType any      `json:"value,omitempty"`
+	Optional   bool     `json:"optional,omitempty"`
+	Order      int      `json:"order,omitempty"`
+	Custom     bool     `json:"custom,omitempty"`
+}
+
+func (c *Client) GetTicketFields() ([]TicketField, error) {
+	var rawFields []map[string]any
+	if err := c.rpc.Call("ticket.getTicketFields", nil, &rawFields); err != nil {
+		return nil, fmt.Errorf("failed to get ticket fields: %w", err)
+	}
+
+	fields := make([]TicketField, 0, len(rawFields))
+	for _, raw := range rawFields {
+		field := TicketField{
+			Label:      utils.GetString(raw["label"]),
+			Name:       utils.GetString(raw["name"]),
+			InputType:   utils.GetString(raw["type"]),
+			Format:     utils.GetString(raw["format"]),
+			Options:    utils.GetStringSlice(raw["options"]),
+			TicketType: raw["value"],
+			Optional:   utils.GetBool(raw["optional"]),
+			Order:      utils.GetInt(raw["order"]),
+			Custom:     utils.GetBool(raw["custom"]),
+		}
+		fields = append(fields, field)
+	}
+
+	return fields, nil
+}
