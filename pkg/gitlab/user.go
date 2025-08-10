@@ -113,37 +113,6 @@ func (c *Client) GetUserByEmail(email string) (*gitlab.User, error) {
 	return nil, ErrUserNotFound
 }
 
-func (c *Client) RevokeImpersonationToken(userID, token int) error {
-	_, err := c.git.Users.RevokeImpersonationToken(userID, token)
-	if err != nil {
-		return fmt.Errorf("failed to revoke impersonation token for user %d: %w", userID, err)
-	}
-	return nil
-}
-
-func (c *Client) GetImpersonationTokens(userID int) ([]*gitlab.ImpersonationToken, error) {
-	tokens, _, err := c.git.Users.GetAllImpersonationTokens(userID, &gitlab.GetAllImpersonationTokensOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list impersonation tokens for user %d: %w", userID, err)
-	}
-	return tokens, nil
-}
-
-func (c *Client) RevokeAllImpersonationTokens(userID int) error {
-	tokens, err := c.GetImpersonationTokens(userID)
-	if err != nil {
-		return fmt.Errorf("failed to get impersonation tokens for user %d: %w", userID, err)
-	}
-
-	for _, token := range tokens {
-		if err := c.RevokeImpersonationToken(userID, token.ID); err != nil {
-			return fmt.Errorf("failed to revoke token %d for user %d: %w", token.ID, userID, err)
-		}
-	}
-
-	return nil
-}
-
 // CreateIssueAsUser creates an issue in a GitLab project as a specific user identified by their email address.
 func (c *Client) CreateIssueAsUser(config *cfg.Config, cache *UserSessionCache, projectID any, email string, opts *gitlab.CreateIssueOptions) (*Issue, error) {
 	sess, ok := cache.Get(email)
