@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"log/slog"
+	cfg "trac2gitlab/internal/config"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -144,4 +146,50 @@ func (c *Client) RevokeAllImpersonationTokens(userID int) error {
 	}
 
 	return nil
+}
+
+func (c *Client) CreateIssueAsUser(config *cfg.Config, cache *UserSessionCache, projectID any, email string, opts *gitlab.CreateIssueOptions) (*Issue, error) {
+	sess, ok := cache.Get(email)
+	if ok {
+		slog.Debug("Using cached impersonated client", "email", email)
+		return sess.Client.CreateIssue(projectID, opts)
+	}
+
+	user, err := c.GetUserByEmail(email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			if config.ImportOptions.CreateUsers {
+				user, err = c.CreateUserFromEmail(email)
+				if err != nil {
+					return nil, fmt.Errorf("failed to auto-create user %q: %w", email, err)
+				}
+			} else {
+				return nil, fmt.Errorf("user %q does not exist and auto-creation is disabled", email)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to look up user %q: %w", email, err)
+		}
+	}
+
+	tokenInfo, err := c.EnsureImpersonationToken(user.ID, "issue-import-token", []string{"api"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize impersonation token: %w", err)
+	}
+
+	impersonatedConfig := *config
+	impersonatedConfig.GitLab.Token = tokenInfo.Token
+	impersonatedClient, err := NewGitLabClient(&impersonatedConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create impersonated client for user %q: %w", email, err)
+	}
+
+	sess = &UserSession{
+		TokenInfo: tokenInfo,
+		Client:    impersonatedClient,
+		UserID:    user.ID,
+	}
+
+	cache.Set(email, sess)
+
+	return impersonatedClient.CreateIssue(projectID, opts)
 }
