@@ -2,7 +2,6 @@ package gitlab
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"trac2gitlab/internal/config"
 
@@ -55,7 +54,7 @@ func (c *Client) ValidateGitLab() error {
 
 	user, _, err := c.git.Users.CurrentUser()
 	if err != nil {
-		log.Fatalf("Failed to get current user: %v", err)
+		return fmt.Errorf("failed to get current user: %w", err)
 	}
 
 	slog.Debug("Authenticated user", "id", user.ID, "name", user.Name, "username", user.Username)
