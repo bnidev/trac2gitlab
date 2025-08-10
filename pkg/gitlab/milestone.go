@@ -6,8 +6,10 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+// ISOTime is a type alias for time.Time that represents a time in ISO 8601 format.
 type ISOTime time.Time
 
+// ListMilestonesOptions defines the options for listing milestones in a project. Here it is aliased to the GitLab client type for easier usage.
 type ListMilestonesOptions = gitlab.ListMilestonesOptions
 
 // ListMilestones retrieves a list of milestones for a given project.
@@ -20,6 +22,7 @@ func (c *Client) ListMilestones(projectID any, opts *ListMilestonesOptions) ([]*
 	return milestones, nil
 }
 
+// Milestone represents a GitLab milestone, here it is aliased to the GitLab client type for easier usage.
 type Milestone = gitlab.Milestone
 
 // GetMilestone retrieves a specific milestone by its ID.
@@ -32,6 +35,7 @@ func (c *Client) GetMilestone(projectID any, milestoneID int) (*Milestone, error
 	return milestone, nil
 }
 
+// MilestoneOptions defines the options for creating a new milestone in a project.
 type MilestoneOptions struct {
 	Title       string
 	Description string
@@ -64,6 +68,7 @@ func (c *Client) UpdateMilestone(projectID any, milestoneID int, opts *UpdateMil
 	return milestone, nil
 }
 
+// GetMilestoneByName retrieves a milestone by its name from the specified project.
 func (c *Client) GetMilestoneByName(projectID any, name string) (*Milestone, error) {
 	opts := &ListMilestonesOptions{
 		Search: &name,

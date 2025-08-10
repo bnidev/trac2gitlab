@@ -10,6 +10,7 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+// User represents a GitLab user.
 type User struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
@@ -20,6 +21,7 @@ type User struct {
 
 var ErrUserNotFound = errors.New("user not found")
 
+// GetCurrentUser retrieves the currently authenticated user from GitLab.
 func (c *Client) GetCurrentUser() (*gitlab.User, error) {
 	user, _, err := c.git.Users.CurrentUser()
 	if err != nil {
@@ -28,6 +30,7 @@ func (c *Client) GetCurrentUser() (*gitlab.User, error) {
 	return user, nil
 }
 
+// CreateUser creates a new user in GitLab with the specified username, name, and email.
 func (c *Client) CreateUser(username, name, email string) (*gitlab.User, error) {
 	opts := &gitlab.CreateUserOptions{
 		Username:            &username,
@@ -44,6 +47,7 @@ func (c *Client) CreateUser(username, name, email string) (*gitlab.User, error) 
 	return user, nil
 }
 
+// CreateUserFromEmail creates a new user in GitLab based on the provided email address.
 func (c *Client) CreateUserFromEmail(email string) (*gitlab.User, error) {
 	parts := strings.Split(email, "@")
 
@@ -54,6 +58,7 @@ func (c *Client) CreateUserFromEmail(email string) (*gitlab.User, error) {
 	return c.CreateUser(username, name, email)
 }
 
+// UpdateUser updates an existing user in GitLab with the specified options.
 func (c *Client) UpdateUser(userID int, opts *gitlab.ModifyUserOptions) (*gitlab.User, error) {
 	user, _, err := c.git.Users.ModifyUser(userID, opts)
 	if err != nil {
@@ -63,6 +68,7 @@ func (c *Client) UpdateUser(userID int, opts *gitlab.ModifyUserOptions) (*gitlab
 	return user, nil
 }
 
+// GetUserByID retrieves a user from GitLab by their ID.
 func (c *Client) GetUserByID(userID int) (*gitlab.User, error) {
 	user, _, err := c.git.Users.GetUser(userID, gitlab.GetUsersOptions{})
 	if err != nil {
@@ -71,6 +77,7 @@ func (c *Client) GetUserByID(userID int) (*gitlab.User, error) {
 	return user, nil
 }
 
+// GetUserByUsername retrieves a user from GitLab by their username.
 func (c *Client) GetUserByUsername(username string) (*gitlab.User, error) {
 	users, _, err := c.git.Users.ListUsers(&gitlab.ListUsersOptions{Username: &username})
 	if err != nil {
@@ -90,6 +97,7 @@ func (c *Client) GetUserByUsername(username string) (*gitlab.User, error) {
 	return nil, nil
 }
 
+// GetUserByEmail retrieves a user from GitLab by their email address.
 func (c *Client) GetUserByEmail(email string) (*gitlab.User, error) {
 	users, _, err := c.git.Users.ListUsers(&gitlab.ListUsersOptions{Search: &email})
 	if err != nil {
@@ -136,6 +144,7 @@ func (c *Client) RevokeAllImpersonationTokens(userID int) error {
 	return nil
 }
 
+// CreateIssueAsUser creates an issue in a GitLab project as a specific user identified by their email address.
 func (c *Client) CreateIssueAsUser(config *cfg.Config, cache *UserSessionCache, projectID any, email string, opts *gitlab.CreateIssueOptions) (*Issue, error) {
 	sess, ok := cache.Get(email)
 	if ok {

@@ -8,6 +8,7 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+// Client represents a GitLab API client
 type Client struct {
 	git *gitlab.Client
 }
@@ -25,11 +26,13 @@ func NewGitLabClient(config *config.Config) (*Client, error) {
 	return &Client{git: git}, nil
 }
 
+// Version represents the GitLab version information.
 type Version struct {
 	Version  string `json:"version"`
 	Revision string `json:"revision"`
 }
 
+// GetVersion retrieves the GitLab version information.
 func (c *Client) GetVersion() (*Version, error) {
 	var version *Version
 	versionRaw, _, err := c.git.Version.GetVersion()
@@ -43,6 +46,7 @@ func (c *Client) GetVersion() (*Version, error) {
 	return version, nil
 }
 
+// ValidateGitLab validates the GitLab connection by checking the version and current user.
 func (c *Client) ValidateGitLab() error {
 	slog.Debug("Validating GitLab connection...")
 

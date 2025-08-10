@@ -7,6 +7,7 @@ import (
 	gitlab_client "gitlab.com/gitlab-org/api/client-go"
 )
 
+// CreateImpersonationToken creates an impersonation token for the specified user with an optional expiration date.
 func (c *Client) CreateImpersonationToken(userID int, expireDate *time.Time) (*gitlab_client.ImpersonationToken, error) {
 	opts := &gitlab_client.CreateImpersonationTokenOptions{
 		Name:      gitlab_client.Ptr("Trac Migration Token"),
@@ -22,6 +23,7 @@ func (c *Client) CreateImpersonationToken(userID int, expireDate *time.Time) (*g
 	return token, nil
 }
 
+// ImpersonationTokenInfo holds information about an impersonation token.
 type ImpersonationTokenInfo struct {
 	ID    int
 	Name  string

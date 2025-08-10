@@ -4,11 +4,13 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
+// Color represents a color with a name and its hexadecimal value.
 type Color struct {
 	Name     string
 	HexValue string
 }
 
+// Colors is a collection of predefined colors used for GitLab labels.
 var Colors = struct {
 	MagentaPink    Color
 	Crimson        Color
@@ -41,8 +43,10 @@ var Colors = struct {
 	Gray:           Color{Name: "Gray", HexValue: "#808080"},
 }
 
+// Label represents a GitLab label, here it is aliased to the GitLab client type for easier usage.
 type Label = gitlab.Label
 
+// Client represents a GitLab API client.
 func (c *Client) GetProjectLabels(projectID int) ([]*Label, error) {
 	labels, _, err := c.git.Labels.ListLabels(projectID, &gitlab.ListLabelsOptions{})
 	if err != nil {
@@ -52,6 +56,7 @@ func (c *Client) GetProjectLabels(projectID int) ([]*Label, error) {
 	return labels, nil
 }
 
+// CreateLabel creates a new label in the specified project with the provided options.
 func (c *Client) CreateLabel(projectID int, opts *gitlab.CreateLabelOptions) (*Label, error) {
 	if opts.Color == nil {
 		opts.Color = &Colors.Gray.HexValue
@@ -64,6 +69,7 @@ func (c *Client) CreateLabel(projectID int, opts *gitlab.CreateLabelOptions) (*L
 	return label, nil
 }
 
+// GetLabelByID retrieves a label by its ID from the specified project.
 func (c *Client) GetLabelByID(projectID int, labelID int) (*Label, error) {
 	label, _, err := c.git.Labels.GetLabel(projectID, labelID)
 	if err != nil {
@@ -73,6 +79,7 @@ func (c *Client) GetLabelByID(projectID int, labelID int) (*Label, error) {
 	return label, nil
 }
 
+// GetLabelbyName retrieves a label by its name from the specified project.
 func (c *Client) GetLabelbyName(projectID int, name string) (*Label, error) {
 	labels, _, err := c.git.Labels.ListLabels(projectID, &gitlab.ListLabelsOptions{Search: &name})
 	if err != nil {
@@ -92,6 +99,7 @@ func (c *Client) GetLabelbyName(projectID int, name string) (*Label, error) {
 	return nil, nil
 }
 
+// UpdateLabel updates an existing label in the specified project with the provided options.
 func (c *Client) UpdateLabel(projectID int, labelID int, opts *gitlab.UpdateLabelOptions) (*Label, error) {
 	label, _, err := c.git.Labels.UpdateLabel(projectID, labelID, opts)
 	if err != nil {
