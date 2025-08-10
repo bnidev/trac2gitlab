@@ -152,6 +152,7 @@ type IssueFlat struct {
 	Description string
 	CreatedAt   *time.Time
 	UpdatedAt   *time.Time
+	Reporter    string
 	Owner       string
 	Status      string
 	MileStoneID int
@@ -187,6 +188,7 @@ func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*Iss
 		Title:       raw.Attributes.Summary,
 		CreatedAt:   &createdAt,
 		UpdatedAt:   &updatedAt,
+		Reporter:    raw.Attributes.Reporter,
 		Owner:       raw.Attributes.Owner,
 		Description: raw.Attributes.Description,
 		Status:      raw.Attributes.Status,
