@@ -45,6 +45,7 @@ type ExportOptions struct {
 type ImportOptions struct {
 	ImportIssues     bool `yaml:"import_issues"`
 	ImportMilestones bool `yaml:"import_milestones"`
+	CreateUsers      bool `yaml:"create_users"`
 }
 
 // LoadConfig reads the configuration from config.yaml
@@ -118,6 +119,7 @@ func CreateDefaultConfig() error {
 		ImportOptions: ImportOptions{
 			ImportIssues:     true,
 			ImportMilestones: true,
+			CreateUsers:      false,
 		},
 	}
 
