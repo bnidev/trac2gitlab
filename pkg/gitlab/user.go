@@ -3,8 +3,8 @@ package gitlab
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"log/slog"
+	"strings"
 	cfg "trac2gitlab/internal/config"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -102,18 +102,6 @@ func (c *Client) GetUserByEmail(email string) (*gitlab.User, error) {
 		}
 	}
 
-func (c *Client) CreateImpersonationToken(userID int) (*gitlab.ImpersonationToken, error) {
-	opts := &gitlab.CreateImpersonationTokenOptions{
-		Name:   gitlab.Ptr("Trac Migration Token"),
-		Scopes: &[]string{"api"},
-	}
-
-	token, _, err := c.git.Users.CreateImpersonationToken(userID, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create impersonation token for user %d: %w", userID, err)
-	}
-
-	return token, nil
 	return nil, ErrUserNotFound
 }
 
