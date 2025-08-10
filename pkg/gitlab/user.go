@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"fmt"
+	"strings"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
@@ -36,6 +37,16 @@ func (c *Client) CreateUser(username, name, email string) (*gitlab.User, error) 
 	}
 
 	return user, nil
+}
+
+func (c *Client) CreateUserFromEmail(email string) (*gitlab.User, error) {
+	parts := strings.Split(email, "@")
+
+	username := parts[0]
+	name := username
+	email = strings.ToLower(email)
+
+	return c.CreateUser(username, name, email)
 }
 
 func (c *Client) UpdateUser(userID int, opts *gitlab.ModifyUserOptions) (*gitlab.User, error) {
