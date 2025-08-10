@@ -36,6 +36,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 		return fmt.Errorf("failed to read milestones from directory: %w", err)
 	}
 
+	userSessionCache := gitlab.NewUserSessionCache()
+
 	for _, issueData := range issues {
 		flat, err := ConvertToFlatIssue(issueData, client, project.ID)
 		if err != nil {
@@ -46,7 +48,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 			slog.Debug("Importing new issue", "ID", flat.ID, "Title", flat.Title)
 
 			// Create the issue in GitLab
-			_, err := client.CreateIssue(project.ID, &gitlab.CreateIssueOptions{
+			_, err := client.CreateIssueAsUser(config, userSessionCache, project.ID, flat.Reporter, &gitlab.CreateIssueOptions{
 				IID:         &flat.ID,
 				Title:       &flat.Title,
 				Description: &flat.Description,
@@ -128,6 +130,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 		}
 
 	}
+	userSessionCache.RevokeAll(client)
+
 	return nil
 }
 
