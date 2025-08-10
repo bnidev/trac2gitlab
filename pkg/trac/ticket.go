@@ -163,7 +163,7 @@ func (c *Client) GetTicketFields() ([]TicketField, error) {
 		field := TicketField{
 			Label:      utils.GetString(raw["label"]),
 			Name:       utils.GetString(raw["name"]),
-			InputType:   utils.GetString(raw["type"]),
+			InputType:  utils.GetString(raw["type"]),
 			Format:     utils.GetString(raw["format"]),
 			Options:    utils.GetStringSlice(raw["options"]),
 			TicketType: raw["value"],

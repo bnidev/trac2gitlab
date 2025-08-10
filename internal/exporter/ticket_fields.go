@@ -12,7 +12,7 @@ import (
 )
 
 type ExportTicketField struct {
-	Name    string  `json:"name"`
+	Name    string   `json:"name"`
 	Options []string `json:"options"`
 }
 
@@ -26,7 +26,7 @@ func ExportTicketFields(client *trac.Client, config *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to get ticket fields: %w", err)
 	}
-	var	exportFields []ExportTicketField
+	var exportFields []ExportTicketField
 	for _, field := range fields {
 		if slices.Contains(defaultFields, field.Name) {
 			// add field.Name and field.Options to export struct

@@ -11,7 +11,6 @@ import (
 )
 
 func ImportIssues(client *gitlab.Client, config *config.Config) error {
-
 	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
 		return err
@@ -61,7 +60,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 			// Update the issue status, because it cant be set on create
 			if flat.Status == "closed" {
 				slog.Debug("Setting issue status to closed", "ID", flat.ID, "Title", flat.Title)
-				var stateEvent = "close"
+				stateEvent := "close"
 				_, err = client.UpdateIssue(project.ID, flat.ID, &gitlab.UpdateIssueOptions{
 					StateEvent: &stateEvent,
 				})
@@ -95,13 +94,13 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 
 			// INFO: Re-Opening/Closing issues will show up as updates in other GitLab issues (thus their updated_at will change)
 			if existingIssue.State != "closed" && flat.Status == "closed" {
-				var stateEvent = "close"
+				stateEvent := "close"
 				updateOpts.StateEvent = &stateEvent
 				needsUpdate = true
 			}
 
 			if existingIssue.State == "closed" && flat.Status != "closed" {
-				var stateEvent = "reopen"
+				stateEvent := "reopen"
 				updateOpts.StateEvent = &stateEvent
 				needsUpdate = true
 			}

@@ -159,7 +159,6 @@ func GetBool(v any) bool {
 	return false
 }
 
-
 func GetInt(v any) int {
 	if v == nil {
 		return 0
