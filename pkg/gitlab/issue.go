@@ -1,10 +1,10 @@
 package gitlab
 
 import (
-	gitlab "gitlab.com/gitlab-org/api/client-go"
+	gitlab_client "gitlab.com/gitlab-org/api/client-go"
 )
 
-type Issue = gitlab.Issue
+type Issue = gitlab_client.Issue
 
 func (c *Client) GetIssue(projectID any, issueID int) (*Issue, error) {
 	issue, _, err := c.git.Issues.GetIssue(projectID, issueID)
@@ -14,9 +14,9 @@ func (c *Client) GetIssue(projectID any, issueID int) (*Issue, error) {
 	return issue, nil
 }
 
-type CreateIssueOptions = gitlab.CreateIssueOptions
+type CreateIssueOptions = gitlab_client.CreateIssueOptions
 
-func (c *Client) CreateIssue(projectID any, opts *gitlab.CreateIssueOptions) (*Issue, error) {
+func (c *Client) CreateIssue(projectID any, opts *gitlab_client.CreateIssueOptions) (*Issue, error) {
 	issue, _, err := c.git.Issues.CreateIssue(projectID, opts)
 	if err != nil {
 		return nil, err
@@ -24,9 +24,9 @@ func (c *Client) CreateIssue(projectID any, opts *gitlab.CreateIssueOptions) (*I
 	return issue, nil
 }
 
-type UpdateIssueOptions = gitlab.UpdateIssueOptions
+type UpdateIssueOptions = gitlab_client.UpdateIssueOptions
 
-func (c *Client) UpdateIssue(projectID any, issueID int, opts *gitlab.UpdateIssueOptions) (*Issue, error) {
+func (c *Client) UpdateIssue(projectID any, issueID int, opts *gitlab_client.UpdateIssueOptions) (*Issue, error) {
 	issue, _, err := c.git.Issues.UpdateIssue(projectID, issueID, opts)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (c *Client) UpdateIssue(projectID any, issueID int, opts *gitlab.UpdateIssu
 }
 
 func (c *Client) ListProjectIssues(projectID any) ([]*Issue, error) {
-	issues, _, err := c.git.Issues.ListProjectIssues(projectID, &gitlab.ListProjectIssuesOptions{})
+	issues, _, err := c.git.Issues.ListProjectIssues(projectID, &gitlab_client.ListProjectIssuesOptions{})
 	if err != nil {
 		return nil, err
 	}
