@@ -45,7 +45,7 @@ func (usc *UserSessionCache) RevokeAll(c *Client) {
 	usc.mu.Lock()
 	defer usc.mu.Unlock()
 	for email, sess := range usc.sessions {
-		if err := c.RevokeImpersonationToken(sess.UserID, sess.TokenInfo.ID); err != nil {
+		if _, err := c.git.Users.RevokeImpersonationToken(sess.UserID, sess.TokenInfo.ID); err != nil {
 			log.Printf("failed to revoke token for user %s: %v", email, err)
 		}
 	}
