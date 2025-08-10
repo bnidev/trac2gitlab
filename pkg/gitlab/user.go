@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,8 @@ type User struct {
 	Name     string `json:"name"`
 	IsAdmin  bool   `json:"is_admin"`
 }
+
+var ErrUserNotFound = errors.New("user not found")
 
 func (c *Client) GetCurrentUser() (*gitlab.User, error) {
 	user, _, err := c.git.Users.CurrentUser()
@@ -91,18 +94,11 @@ func (c *Client) GetUserByEmail(email string) (*gitlab.User, error) {
 		return nil, fmt.Errorf("failed to get user by email %s: %w", email, err)
 	}
 
-	if len(users) == 0 {
-		return nil, fmt.Errorf("user with email %s not found", email)
-	}
-
 	for _, user := range users {
 		if user.Email == email {
 			return user, nil
 		}
 	}
-
-	return nil, nil
-}
 
 func (c *Client) CreateImpersonationToken(userID int) (*gitlab.ImpersonationToken, error) {
 	opts := &gitlab.CreateImpersonationTokenOptions{
@@ -116,6 +112,7 @@ func (c *Client) CreateImpersonationToken(userID int) (*gitlab.ImpersonationToke
 	}
 
 	return token, nil
+	return nil, ErrUserNotFound
 }
 
 func (c *Client) RevokeImpersonationToken(userID, token int) error {
