@@ -24,9 +24,10 @@ func (c *Client) GetCurrentUser() (*gitlab.User, error) {
 
 func (c *Client) CreateUser(username, name, email string) (*gitlab.User, error) {
 	opts := &gitlab.CreateUserOptions{
-		Username: &username,
-		Name:     &name,
-		Email:    &email,
+		Username:            &username,
+		Name:                &name,
+		Email:               &email,
+		ForceRandomPassword: gitlab.Ptr(true),
 	}
 
 	user, _, err := c.git.Users.CreateUser(opts)
