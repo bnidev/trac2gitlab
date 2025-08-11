@@ -11,6 +11,7 @@ import (
 	"trac2gitlab/pkg/trac"
 )
 
+// ExportWiki exports wiki pages from Trac and saves them as Markdown files
 func ExportWiki(client *trac.Client, config *config.Config) error {
 	slog.Info("Starting wiki export...")
 

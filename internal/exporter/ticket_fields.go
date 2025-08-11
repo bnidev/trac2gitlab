@@ -11,6 +11,7 @@ import (
 	"trac2gitlab/pkg/trac"
 )
 
+// ExportTicketField represents a ticket field with its name and options
 type ExportTicketField struct {
 	Name    string   `json:"name"`
 	Options []string `json:"options"`
@@ -57,6 +58,7 @@ func ExportTicketFields(client *trac.Client, config *config.Config) error {
 	return nil
 }
 
+// createExportTicketField converts a trac.TicketField to an ExportTicketField
 func createExportTicketField(field trac.TicketField) ExportTicketField {
 	return ExportTicketField{
 		Name:    field.Name,

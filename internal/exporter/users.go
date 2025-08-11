@@ -10,6 +10,7 @@ import (
 	"trac2gitlab/pkg/trac"
 )
 
+// ExportUsers exports unique users from Trac tickets and saves them to a file
 func ExportUsers(client *trac.Client, config *config.Config) error {
 	ids, err := client.GetAllTicketIDs("max=0")
 	if err != nil {
