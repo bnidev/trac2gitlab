@@ -6,7 +6,7 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 
 ### Exporter
 
-- Export tickets from Trac as JSON files (including history)
+- Export tickets from Trac as JSON files (including content history and comments)
 - Export content of wiki pages from Trac as markdown files (including history)
 - Export metadata of wiki pages from Trac as JSON files (including history)
 - Export milestones as JSON files
@@ -17,16 +17,13 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 ### Importer
 
 - Import milestones into GitLab projects (updates if already exist and content differs)
+- Import issues into GitLab projects (updates if already exist and content differs)
 
 ## Planned Features
 
-### Exporter
-
-- Export comments (not supported by the Trac XML-RPC plugin)
-
 ### Importer
 
-- Import issues into GitLab projects
+- Add Trac ticket comments to GitLab issues (preserve original authors and timestamps)
 - Preserve ticket history in GitLab issues (not supported by the GitLab API)
 - Map Trac fields to GitLab labels
 - Import wiki pages into GitLab projects
@@ -52,8 +49,10 @@ If you're using another version, some methods may not be available or may behave
 ## Running the tool (from source)
 
 1. Clone the repository
-2. Configure `config.example.yml` to your environment and rename it to `config.yml`
-3. Run the commands in your terminal
+2. Run `make install` to install dependencies
+3. Run `make init` to generate a default config or rename `config.example.yml` to `config.yml`
+4. Configure `config.yml` with your Trac and GitLab settings
+5. Run the commands in your terminal
 
 **Trac Exporter:**
 
@@ -66,3 +65,5 @@ make export
 ```bash
 make migrate
 ```
+
+Check the `Makefile` for more commands and options.
