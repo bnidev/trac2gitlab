@@ -2,6 +2,9 @@
 
 A tool to synchronize tickets, wikis and related data from a Trac instance (via XML-RPC) into a GitLab project.
 
+[![CI](https://github.com/bnidev/trac2gitlab/actions/workflows/ci.yaml/badge.svg)](https://github.com/bnidev/trac2gitlab/actions/workflows/ci.yaml)
+
+
 ## Current Features
 
 ### Exporter
