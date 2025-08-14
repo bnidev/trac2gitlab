@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/internal/utils"
-	"trac2gitlab/pkg/gitlab"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/utils"
+	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 )
 
 func ImportIssues(client *gitlab.Client, config *config.Config) error {

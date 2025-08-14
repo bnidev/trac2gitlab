@@ -4,7 +4,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"time"
-	"trac2gitlab/internal/utils"
+
+	"github.com/bnidev/trac2gitlab/internal/utils"
 )
 
 // Attachment represents a file attachment in Trac

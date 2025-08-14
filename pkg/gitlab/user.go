@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	cfg "trac2gitlab/internal/config"
+
+	cfg "github.com/bnidev/trac2gitlab/internal/config"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )

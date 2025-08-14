@@ -3,9 +3,10 @@ package cli
 import (
 	"log/slog"
 	"time"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/internal/exporter"
-	"trac2gitlab/pkg/trac"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/exporter"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 
 	"github.com/spf13/cobra"
 )

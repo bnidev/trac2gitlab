@@ -1,4 +1,4 @@
-module trac2gitlab
+module github.com/bnidev/trac2gitlab
 
 go 1.23.4
 

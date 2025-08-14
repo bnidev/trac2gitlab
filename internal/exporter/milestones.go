@@ -6,8 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/pkg/trac"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
 
 // ExportMilestones exports milestones from Trac and saves them as JSON files

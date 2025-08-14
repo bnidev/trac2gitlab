@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/pkg/trac"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
 
 // ExportTickets exports tickets from Trac and saves them as JSON files

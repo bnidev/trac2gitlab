@@ -2,9 +2,10 @@ package cli
 
 import (
 	"log/slog"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/internal/importer"
-	"trac2gitlab/pkg/gitlab"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/importer"
+	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 
 	"github.com/spf13/cobra"
 )

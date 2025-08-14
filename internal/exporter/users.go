@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/pkg/trac"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
 
 // ExportUsers exports unique users from Trac tickets and saves them to a file

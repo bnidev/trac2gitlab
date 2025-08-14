@@ -3,7 +3,8 @@ package trac
 import (
 	"fmt"
 	"time"
-	"trac2gitlab/internal/utils"
+
+	"github.com/bnidev/trac2gitlab/internal/utils"
 )
 
 // Milestone represents a Trac milestone with its details.

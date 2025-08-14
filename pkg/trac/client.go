@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"trac2gitlab/internal/config"
-	"trac2gitlab/pkg/xmlrpc"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/pkg/xmlrpc"
 )
 
 type Client struct {

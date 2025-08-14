@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/config"
 
 	"log/slog"
 

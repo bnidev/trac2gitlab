@@ -3,7 +3,8 @@ package gitlab
 import (
 	"fmt"
 	"log/slog"
-	"trac2gitlab/internal/config"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
