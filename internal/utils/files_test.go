@@ -112,7 +112,9 @@ func TestReadFilesFromDir(t *testing.T) {
 
 	t.Run("File limit enforced", func(t *testing.T) {
 		// Create more than 1000 json files
-		for i := range 1100 {
+		const testFilesAboveLimit = 1100
+		// Create more than 1000 json files
+		for i := range testFilesAboveLimit {
 			fname := filepath.Join(dir, "file"+fmt.Sprint(i)+"_limit.json")
 			if err = os.WriteFile(fname, []byte(`{"num":`+fmt.Sprint(i)+`}`), 0644); err != nil {
 				t.Fatalf("failed to create test file %s: %v", fname, err)
