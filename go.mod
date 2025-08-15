@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b
 	github.com/spf13/cobra v1.9.1
-	gitlab.com/gitlab-org/api/client-go v0.137.0
+	gitlab.com/gitlab-org/api/client-go v0.139.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -28,6 +28,6 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 )
