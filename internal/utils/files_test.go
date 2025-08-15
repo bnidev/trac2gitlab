@@ -15,7 +15,7 @@ import (
 func TestReadFilesFromDir(t *testing.T) {
 	dir := t.TempDir()
 
-	// Helper to create a file nith content
+	// Helper to create a file with content
 	createFile := func(name, content string) {
 		err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644)
 		if err != nil {
