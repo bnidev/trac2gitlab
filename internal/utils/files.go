@@ -2,13 +2,14 @@ package utils
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 // ReadFilesFromDir reads all files with the given extension from the specified directory.
-func ReadFilesFromDir(dirPath string, fileType string) ([][]byte, error) {
+func ReadFilesFromDir(dirPath string, fileType string, warnWriter io.Writer) ([][]byte, error) {
 	allowedTypes := map[string]bool{".json": true, ".md": true}
 	if fileType == "" {
 		fileType = ".json"
@@ -38,7 +39,11 @@ func ReadFilesFromDir(dirPath string, fileType string) ([][]byte, error) {
 			fullPath := filepath.Join(dirPath, entry.Name())
 			content, err := os.ReadFile(fullPath)
 			if err != nil {
-				fmt.Printf("Warning: failed to read file %s: %v\n", fullPath, err)
+				if warnWriter != nil {
+					if _, err = fmt.Fprintf(warnWriter, "Warning: failed to read file %s: %v\n", fullPath, err); err != nil {
+						return nil, fmt.Errorf("failed to write warning: %w", err)
+					}
+				}
 				continue
 			}
 			results = append(results, content)

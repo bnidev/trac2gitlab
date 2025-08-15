@@ -57,6 +57,8 @@ func (h *PrettyHandler) WithGroup(name string) slog.Handler {
 
 func styledLevel(level slog.Level) (string, lipgloss.Style) {
 	var code string
+	levelStr := level.String()
+
 	switch level {
 	case slog.LevelDebug:
 		code = "8" // gray
@@ -71,7 +73,7 @@ func styledLevel(level slog.Level) (string, lipgloss.Style) {
 	}
 
 	style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(code))
-	return style.Render("[" + level.String() + "]"), style
+	return style.Render("[" + levelStr + "]"), style
 }
 
 func parseLevel(s string) slog.Level {

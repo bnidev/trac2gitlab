@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -32,7 +33,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 
 	fmt.Printf("Importing issues for project: %s (ID: %d)\n", project.Name, project.ID)
 
-	issues, err := utils.ReadFilesFromDir("data/tickets", ".json")
+	issues, err := utils.ReadFilesFromDir("data/tickets", ".json", os.Stderr)
 	if err != nil {
 		return fmt.Errorf("failed to read milestones from directory: %w", err)
 	}
