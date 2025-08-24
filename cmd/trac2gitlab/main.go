@@ -10,7 +10,8 @@ import (
 )
 
 func main() {
-	logger := utils.NewLogger("")
+	defaultLogLevel := "info"
+	logger := utils.NewLogger(defaultLogLevel)
 	slog.SetDefault(logger.Logger)
 
 	cfg, err := config.LoadConfig()
