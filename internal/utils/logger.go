@@ -11,23 +11,51 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func InitLogger() {
-	level := "debug"
-	minLevel := parseLevel(level)
-	logger := slog.New(NewPrettyHandler(minLevel))
-	slog.SetDefault(logger)
+type Logger struct {
+	*slog.Logger
+	handler *PrettyHandler
+}
+
+func NewLogger(level string) *Logger {
+	minLevel, valid := parseLevel(level)
+
+	if !valid {
+		fmt.Printf("Invalid log level: %q. Falling back to 'info'.\n", level)
+		minLevel = slog.LevelInfo
+	}
+
+	handler := NewPrettyHandler(minLevel)
+
+	return &Logger{
+		Logger:  slog.New(handler),
+		handler: handler,
+	}
+}
+
+func (l *Logger) SetLevel(level string) {
+	minLevel, valid := parseLevel(level)
+	if !valid {
+		fmt.Printf("Invalid log level: %q. Falling back to 'info'.\n", level)
+		minLevel = slog.LevelInfo
+	}
+	l.handler.SetLevel(minLevel)
 }
 
 type PrettyHandler struct {
-	minLevel slog.Level
+	minLevel *slog.Level
 }
 
 func NewPrettyHandler(level slog.Level) *PrettyHandler {
-	return &PrettyHandler{minLevel: level}
+	lvl := level
+	return &PrettyHandler{minLevel: &lvl}
+}
+
+func (h *PrettyHandler) SetLevel(level slog.Level) {
+	*h.minLevel = level
 }
 
 func (h *PrettyHandler) Enabled(_ context.Context, level slog.Level) bool {
-	return level >= h.minLevel
+	return level >= *h.minLevel
 }
 
 func (h *PrettyHandler) Handle(_ context.Context, record slog.Record) error {
@@ -76,17 +104,17 @@ func styledLevel(level slog.Level) (string, lipgloss.Style) {
 	return style.Render("[" + levelStr + "]"), style
 }
 
-func parseLevel(s string) slog.Level {
+func parseLevel(s string) (slog.Level, bool) {
 	switch strings.ToLower(s) {
 	case "debug":
-		return slog.LevelDebug
+		return slog.LevelDebug, true
 	case "info":
-		return slog.LevelInfo
+		return slog.LevelInfo, true
 	case "warn":
-		return slog.LevelWarn
+		return slog.LevelWarn, true
 	case "error":
-		return slog.LevelError
+		return slog.LevelError, true
 	default:
-		return slog.LevelInfo
+		return slog.LevelInfo, false
 	}
 }

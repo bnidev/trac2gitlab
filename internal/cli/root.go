@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/bnidev/trac2gitlab/internal/app"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,9 @@ var rootCmd = &cobra.Command{
 }
 
 // Execute runs the root command and handles any errors
-func Execute() {
+func Execute(ctx *app.AppContext) {
+	SetupCommands(ctx)
+
 	if err := rootCmd.Execute(); err != nil {
 		slog.Error("Command execution failed", "errorMsg", err)
 		os.Exit(1)
@@ -22,9 +25,9 @@ func Execute() {
 }
 
 // AddCommand functions can be called here once other commands are defined
-func init() {
-	rootCmd.AddCommand(exportCmd)
+func SetupCommands(ctx *app.AppContext) {
+	rootCmd.AddCommand(exportCmd(ctx))
 	rootCmd.AddCommand(initCmd)
-	rootCmd.AddCommand(migrateCmd)
+	rootCmd.AddCommand(migrateCmd(ctx))
 	rootCmd.AddCommand(versionCmd)
 }
