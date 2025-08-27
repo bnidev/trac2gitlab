@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -42,20 +43,26 @@ func (l *Logger) SetLevel(level string) {
 }
 
 type PrettyHandler struct {
-	minLevel *slog.Level
+	minLevel atomic.Value
 }
 
 func NewPrettyHandler(level slog.Level) *PrettyHandler {
-	lvl := level
-	return &PrettyHandler{minLevel: &lvl}
+	h := &PrettyHandler{}
+	h.minLevel.Store(level)
+	return h
 }
 
 func (h *PrettyHandler) SetLevel(level slog.Level) {
-	*h.minLevel = level
+	h.minLevel.Store(level)
 }
 
 func (h *PrettyHandler) Enabled(_ context.Context, level slog.Level) bool {
-	return level >= *h.minLevel
+	v := h.minLevel.Load()
+	if v == nil {
+		return true
+	}
+	currentLevel := v.(slog.Level)
+	return level >= currentLevel
 }
 
 func (h *PrettyHandler) Handle(_ context.Context, record slog.Record) error {
