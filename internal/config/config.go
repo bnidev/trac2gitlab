@@ -10,10 +10,16 @@ import (
 
 // Config holds the configuration for the application
 type Config struct {
+	General       General       `yaml:"general"`
 	Trac          TracConfig    `yaml:"trac"`
 	GitLab        GitLabConfig  `yaml:"gitlab"`
 	ExportOptions ExportOptions `yaml:"export_options"`
 	ImportOptions ImportOptions `yaml:"import_options"`
+}
+
+// Ceneral holds general configuration options
+type General struct {
+	LogLevel string `yaml:"log_level"`
 }
 
 // TracConfig holds the configuration for the Trac instance
@@ -97,6 +103,9 @@ func CheckConfigExists() bool {
 // CreateDefaultConfig creates a default configuration file
 func CreateDefaultConfig() error {
 	defaultConfig := Config{
+		General: General{
+			LogLevel: "info",
+		},
 		Trac: TracConfig{
 			BaseURL: "https://trac.example.com",
 			RPCPath: "/xmlrpc",
