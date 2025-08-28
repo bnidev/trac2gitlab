@@ -22,17 +22,24 @@ type ExportTicketField struct {
 func ExportTicketFields(client *trac.Client, config *config.Config) error {
 	slog.Info("Starting ticket field export...")
 
-	var defaultFields = []string{"priority", "component", "type"}
+	defaultFields := []string{"priority", "component", "type"}
+	additionalFields := config.ExportOptions.AdditionalTicketFields
 
 	fields, err := client.GetTicketFields()
 	if err != nil {
 		return fmt.Errorf("failed to get ticket fields: %w", err)
 	}
+
 	var exportFields []ExportTicketField
+
 	for _, field := range fields {
 		if slices.Contains(defaultFields, field.Name) {
-			// add field.Name and field.Options to export struct
 			slog.Debug("Default field found", "fieldName", field.Name, "options", field.Options)
+			appendedField := createExportTicketField(field)
+			exportFields = append(exportFields, appendedField)
+		}
+		if slices.Contains(additionalFields, field.Name) {
+			slog.Debug("Additional field found", "fieldName", field.Name, "options", field.Options)
 			appendedField := createExportTicketField(field)
 			exportFields = append(exportFields, appendedField)
 		}
