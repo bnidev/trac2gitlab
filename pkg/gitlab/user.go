@@ -69,12 +69,53 @@ func (c *Client) UpdateUser(userID int, opts *gitlab.ModifyUserOptions) (*gitlab
 	return user, nil
 }
 
+// DeactivateUser deactivates a user in GitLab by their ID.
+func (c *Client) DeactivateUser(userID int) error {
+	err := c.git.Users.DeactivateUser(userID)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate user %d: %w", userID, err)
+	}
+
+	return nil
+}
+
+// ActivateUser activates a user in GitLab by their ID.
+func (c *Client) ActivateUser(userID int) error {
+	err := c.git.Users.ActivateUser(userID)
+	if err != nil {
+		return fmt.Errorf("failed to activate user %d: %w", userID, err)
+	}
+
+	return nil
+}
+
+// BlockUser blocks a user in GitLab by their ID.
+func (c *Client) BlockUser(userID int) error {
+	err := c.git.Users.BlockUser(userID)
+	if err != nil {
+		return fmt.Errorf("failed to block user %d: %w", userID, err)
+	}
+
+	return nil
+}
+
+// UnblockUser unblocks a user in GitLab by their ID.
+func (c *Client) UnblockUser(userID int) error {
+	err := c.git.Users.UnblockUser(userID)
+	if err != nil {
+		return fmt.Errorf("failed to unblock user %d: %w", userID, err)
+	}
+
+	return nil
+}
+
 // GetUserByID retrieves a user from GitLab by their ID.
 func (c *Client) GetUserByID(userID int) (*gitlab.User, error) {
 	user, _, err := c.git.Users.GetUser(userID, gitlab.GetUsersOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by ID %d: %w", userID, err)
 	}
+
 	return user, nil
 }
 
