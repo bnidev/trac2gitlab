@@ -32,16 +32,14 @@ func ExportTicketFields(client *trac.Client, config *config.Config) error {
 
 	var exportFields []ExportTicketField
 
+	processed := make(map[string]bool)
+
 	for _, field := range fields {
-		if slices.Contains(defaultFields, field.Name) {
-			slog.Debug("Default field found", "fieldName", field.Name, "options", field.Options)
+		if (slices.Contains(defaultFields, field.Name) || slices.Contains(additionalFields, field.Name)) && !processed[field.Name] {
+			slog.Debug("Field added", "fieldName", field.Name, "options", field.Options)
 			appendedField := createExportTicketField(field)
 			exportFields = append(exportFields, appendedField)
-		}
-		if slices.Contains(additionalFields, field.Name) {
-			slog.Debug("Additional field found", "fieldName", field.Name, "options", field.Options)
-			appendedField := createExportTicketField(field)
-			exportFields = append(exportFields, appendedField)
+			processed[field.Name] = true
 		}
 	}
 
