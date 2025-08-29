@@ -38,13 +38,14 @@ type GitLabConfig struct {
 
 // ExportOptions holds the options for exporting data from Trac
 type ExportOptions struct {
-	IncludeWiki          bool   `yaml:"include_wiki"`
-	IncludeAttachments   bool   `yaml:"include_attachments"`
-	IncludeTicketHistory bool   `yaml:"include_ticket_history"`
-	IncludeClosedTickets bool   `yaml:"include_closed_tickets"`
-	IncludeTicketFields  bool   `yaml:"include_ticket_fields"`
-	IncludeUsers         bool   `yaml:"include_users"`
-	ExportDir            string `yaml:"export_dir"`
+	IncludeWiki            bool     `yaml:"include_wiki"`
+	IncludeAttachments     bool     `yaml:"include_attachments"`
+	IncludeTicketHistory   bool     `yaml:"include_ticket_history"`
+	IncludeClosedTickets   bool     `yaml:"include_closed_tickets"`
+	IncludeTicketFields    bool     `yaml:"include_ticket_fields"`
+	AdditionalTicketFields []string `yaml:"additional_ticket_fields"`
+	IncludeUsers           bool     `yaml:"include_users"`
+	ExportDir              string   `yaml:"export_dir"`
 }
 
 // ImportOptions holds the options for importing data into GitLab
