@@ -5,7 +5,7 @@ go 1.23.4
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	gitlab.com/gitlab-org/api/client-go v0.142.5
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -25,7 +25,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
