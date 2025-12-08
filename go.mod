@@ -5,7 +5,7 @@ go 1.23.4
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	gitlab.com/gitlab-org/api/client-go v0.157.0
 	gopkg.in/yaml.v3 v3.0.1
 )
