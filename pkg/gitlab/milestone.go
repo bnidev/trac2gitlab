@@ -26,7 +26,7 @@ func (c *Client) ListMilestones(projectID any, opts *ListMilestonesOptions) ([]*
 type Milestone = gitlab.Milestone
 
 // GetMilestone retrieves a specific milestone by its ID.
-func (c *Client) GetMilestone(projectID any, milestoneID int) (*Milestone, error) {
+func (c *Client) GetMilestone(projectID any, milestoneID int64) (*Milestone, error) {
 	milestone, _, err := c.git.Milestones.GetMilestone(projectID, milestoneID)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (c *Client) CreateMilestone(projectID any, opts *MilestoneOptions) (*Milest
 type UpdateMilestoneOptions = gitlab.UpdateMilestoneOptions
 
 // UpdateMilestone updates an existing milestone in the specified project.
-func (c *Client) UpdateMilestone(projectID any, milestoneID int, opts *UpdateMilestoneOptions) (*Milestone, error) {
+func (c *Client) UpdateMilestone(projectID any, milestoneID int64, opts *UpdateMilestoneOptions) (*Milestone, error) {
 	milestone, _, err := c.git.Milestones.UpdateMilestone(projectID, milestoneID, opts)
 	if err != nil {
 		return nil, err

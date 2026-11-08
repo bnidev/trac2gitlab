@@ -8,7 +8,7 @@ import (
 )
 
 // CreateImpersonationToken creates an impersonation token for the specified user with an optional expiration date.
-func (c *Client) CreateImpersonationToken(userID int, expireDate *time.Time) (*gitlab_client.ImpersonationToken, error) {
+func (c *Client) CreateImpersonationToken(userID int64, expireDate *time.Time) (*gitlab_client.ImpersonationToken, error) {
 	opts := &gitlab_client.CreateImpersonationTokenOptions{
 		Name:      gitlab_client.Ptr("Trac Migration Token"),
 		Scopes:    &[]string{"api"},
@@ -25,13 +25,13 @@ func (c *Client) CreateImpersonationToken(userID int, expireDate *time.Time) (*g
 
 // ImpersonationTokenInfo holds information about an impersonation token.
 type ImpersonationTokenInfo struct {
-	ID    int
+	ID    int64
 	Name  string
 	Token string
 }
 
 // EnsureImpersonationToken checks if an impersonation token with the given name exists for the user.
-func (c *Client) EnsureImpersonationToken(userID int, tokenName string, scopes []string) (*ImpersonationTokenInfo, error) {
+func (c *Client) EnsureImpersonationToken(userID int64, tokenName string, scopes []string) (*ImpersonationTokenInfo, error) {
 	tokens, _, err := c.git.Users.GetAllImpersonationTokens(userID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get existing impersonation tokens: %w", err)

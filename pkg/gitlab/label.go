@@ -47,7 +47,7 @@ var Colors = struct {
 type Label = gitlab.Label
 
 // Client represents a GitLab API client.
-func (c *Client) GetProjectLabels(projectID int) ([]*Label, error) {
+func (c *Client) GetProjectLabels(projectID any) ([]*Label, error) {
 	labels, _, err := c.git.Labels.ListLabels(projectID, &gitlab.ListLabelsOptions{})
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (c *Client) GetProjectLabels(projectID int) ([]*Label, error) {
 }
 
 // CreateLabel creates a new label in the specified project with the provided options.
-func (c *Client) CreateLabel(projectID int, opts *gitlab.CreateLabelOptions) (*Label, error) {
+func (c *Client) CreateLabel(projectID any, opts *gitlab.CreateLabelOptions) (*Label, error) {
 	if opts.Color == nil {
 		opts.Color = &Colors.Gray.HexValue
 	}
@@ -70,7 +70,7 @@ func (c *Client) CreateLabel(projectID int, opts *gitlab.CreateLabelOptions) (*L
 }
 
 // GetLabelByID retrieves a label by its ID from the specified project.
-func (c *Client) GetLabelByID(projectID int, labelID int) (*Label, error) {
+func (c *Client) GetLabelByID(projectID any, labelID any) (*Label, error) {
 	label, _, err := c.git.Labels.GetLabel(projectID, labelID)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (c *Client) GetLabelByID(projectID int, labelID int) (*Label, error) {
 }
 
 // GetLabelbyName retrieves a label by its name from the specified project.
-func (c *Client) GetLabelbyName(projectID int, name string) (*Label, error) {
+func (c *Client) GetLabelbyName(projectID any, name string) (*Label, error) {
 	labels, _, err := c.git.Labels.ListLabels(projectID, &gitlab.ListLabelsOptions{Search: &name})
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (c *Client) GetLabelbyName(projectID int, name string) (*Label, error) {
 }
 
 // UpdateLabel updates an existing label in the specified project with the provided options.
-func (c *Client) UpdateLabel(projectID int, labelID int, opts *gitlab.UpdateLabelOptions) (*Label, error) {
+func (c *Client) UpdateLabel(projectID any, labelID any, opts *gitlab.UpdateLabelOptions) (*Label, error) {
 	label, _, err := c.git.Labels.UpdateLabel(projectID, labelID, opts)
 	if err != nil {
 		return nil, err

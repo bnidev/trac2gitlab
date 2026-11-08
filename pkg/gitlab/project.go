@@ -39,7 +39,7 @@ func (c *Client) GetProjectMembers(projectID any) ([]*gitlab.ProjectMember, erro
 }
 
 // GetProjectMember retrieves a specific member of a project by project ID and user ID.
-func (c *Client) GetProjectMember(projectID any, userID int) (*gitlab.ProjectMember, error) {
+func (c *Client) GetProjectMember(projectID any, userID int64) (*gitlab.ProjectMember, error) {
 	member, _, err := c.git.ProjectMembers.GetProjectMember(projectID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get member %d for project %v: %w", userID, projectID, err)
@@ -49,7 +49,7 @@ func (c *Client) GetProjectMember(projectID any, userID int) (*gitlab.ProjectMem
 }
 
 // SetProjectMemberAccessLevel updates a project member's access level.
-func (c *Client) SetProjectMemberAccessLevel(projectID any, userID int, accessLevel gitlab.AccessLevelValue) error {
+func (c *Client) SetProjectMemberAccessLevel(projectID any, userID int64, accessLevel gitlab.AccessLevelValue) error {
 	if !ValidateAccessLevel(int(accessLevel)) {
 		return fmt.Errorf("invalid access level: %d", accessLevel)
 	}
@@ -65,7 +65,7 @@ func (c *Client) SetProjectMemberAccessLevel(projectID any, userID int, accessLe
 }
 
 // AddProjectMember adds a user to a project with a specified access level.
-func (c *Client) AddProjectMember(projectID any, userID int, accessLevel gitlab.AccessLevelValue) error {
+func (c *Client) AddProjectMember(projectID any, userID int64, accessLevel gitlab.AccessLevelValue) error {
 	if !ValidateAccessLevel(int(accessLevel)) {
 		return fmt.Errorf("invalid access level: %d", accessLevel)
 	}

@@ -8,7 +8,7 @@ import (
 type Issue = gitlab_client.Issue
 
 // GetIssue retrieves a specific issue by its ID from the specified project.
-func (c *Client) GetIssue(projectID any, issueID int) (*Issue, error) {
+func (c *Client) GetIssue(projectID any, issueID int64) (*Issue, error) {
 	issue, _, err := c.git.Issues.GetIssue(projectID, issueID)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (c *Client) CreateIssue(projectID any, opts *gitlab_client.CreateIssueOptio
 type UpdateIssueOptions = gitlab_client.UpdateIssueOptions
 
 // UpdateIssue updates an existing issue in the specified project with the provided options.
-func (c *Client) UpdateIssue(projectID any, issueID int, opts *gitlab_client.UpdateIssueOptions) (*Issue, error) {
+func (c *Client) UpdateIssue(projectID any, issueID int64, opts *gitlab_client.UpdateIssueOptions) (*Issue, error) {
 	issue, _, err := c.git.Issues.UpdateIssue(projectID, issueID, opts)
 	if err != nil {
 		return nil, err

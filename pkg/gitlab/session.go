@@ -7,7 +7,7 @@ import (
 
 // UserSession represents a user session in GitLab, including the user ID, impersonation token info, and the client used for API calls.
 type UserSession struct {
-	UserID    int
+	UserID    int64
 	TokenInfo *ImpersonationTokenInfo
 	Client    *Client
 }

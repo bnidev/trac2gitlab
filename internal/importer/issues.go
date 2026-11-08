@@ -153,7 +153,7 @@ type IssueRaw struct {
 }
 
 type IssueFlat struct {
-	ID          int
+	ID          int64
 	Title       string
 	Description string
 	CreatedAt   *time.Time
@@ -161,7 +161,7 @@ type IssueFlat struct {
 	Reporter    string
 	Owner       string
 	Status      string
-	MileStoneID int
+	MileStoneID int64
 }
 
 func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*IssueFlat, error) {
@@ -182,7 +182,7 @@ func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*Iss
 
 	milestone, err := client.GetMilestoneByName(projectID, raw.Attributes.Milestone)
 
-	var milestoneID int
+	var milestoneID int64
 	if err != nil || milestone == nil {
 		milestoneID = 0
 	} else {
@@ -190,7 +190,7 @@ func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*Iss
 	}
 
 	flat := &IssueFlat{
-		ID:          raw.ID,
+		ID:          int64(raw.ID),
 		Title:       raw.Attributes.Summary,
 		CreatedAt:   &createdAt,
 		UpdatedAt:   &updatedAt,
