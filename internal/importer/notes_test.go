@@ -16,8 +16,8 @@ func TestIsChangesetComment(t *testing.T) {
 		"":                                           false,
 	}
 	for body, want := range cases {
-		if got := isChangesetComment(body); got != want {
-			t.Errorf("isChangesetComment(%q) = %v, want %v", body, got, want)
+		if got := IsChangesetComment(body); got != want {
+			t.Errorf("IsChangesetComment(%q) = %v, want %v", body, got, want)
 		}
 	}
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
 
-type wikiPageFile struct {
+type WikiPageFile struct {
 	Meta        trac.WikiPage
 	ContentPath string
 }
@@ -40,7 +40,7 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	}
 
 	wikiDir := filepath.Join(cfg.ExportOptions.ExportDir, "wiki")
-	pages, err := collectWikiPages(wikiDir)
+	pages, err := CollectWikiPages(wikiDir)
 	if err != nil {
 		return result, err
 	}
@@ -123,8 +123,8 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	return result, nil
 }
 
-func collectWikiPages(wikiDir string) (map[string]wikiPageFile, error) {
-	pages := make(map[string]wikiPageFile)
+func CollectWikiPages(wikiDir string) (map[string]WikiPageFile, error) {
+	pages := make(map[string]WikiPageFile)
 	err := filepath.WalkDir(wikiDir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -152,7 +152,7 @@ func collectWikiPages(wikiDir string) (map[string]wikiPageFile, error) {
 		if ok && current.Meta.Version >= meta.Version {
 			return nil
 		}
-		pages[meta.Name] = wikiPageFile{
+		pages[meta.Name] = WikiPageFile{
 			Meta:        meta,
 			ContentPath: strings.TrimSuffix(path, ".json") + ".md",
 		}
