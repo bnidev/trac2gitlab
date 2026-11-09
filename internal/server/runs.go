@@ -72,7 +72,7 @@ func runExport(cfg *config.Config, log func(string)) error {
 		return fmt.Errorf("create Trac client: %w", err)
 	}
 	if err := client.ValidateExpectedMethods(); err != nil {
-		return fmt.Errorf("Trac client validation: %w", err)
+		return fmt.Errorf("trac client validation: %w", err)
 	}
 	if err := client.ValidatePluginVersion(); err != nil {
 		log("plugin version warning: " + err.Error())
@@ -108,7 +108,7 @@ func runDryRun(cfg *config.Config, log func(string)) error {
 		return fmt.Errorf("create GitLab client: %w", err)
 	}
 	if err := client.ValidateGitLab(); err != nil {
-		return fmt.Errorf("GitLab validation: %w", err)
+		return fmt.Errorf("gitlab validation: %w", err)
 	}
 	statePath := filepath.Join(cfg.ProjectDir, "state", "migration.yaml")
 	run, err := state.Load(statePath)
