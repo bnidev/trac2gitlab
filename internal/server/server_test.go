@@ -74,6 +74,66 @@ func TestPreflightRunWritesReport(t *testing.T) {
 	}
 }
 
+func TestUsersEndpoints(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(dir, "mappings"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte("general:\n  log_level: info\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	users := "users:\n  jdoe:\n    trac_username: jdoe\n    gitlab: jdoe\n    confidence: manual\n  old-dev:\n    trac_username: old-dev\n    action: unresolved\n    confidence: manual\n"
+	if err := os.WriteFile(filepath.Join(dir, "mappings", "users.yaml"), []byte(users), 0644); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("GET", "/api/users?project=demo", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("users status %d: %s", rec.Code, rec.Body.String())
+	}
+	var list map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	if list["exists"] != true {
+		t.Fatalf("expected exists, got %v", list)
+	}
+
+	req = httptest.NewRequest("POST", "/api/users/validate?project=demo", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("validate status %d: %s", rec.Code, rec.Body.String())
+	}
+	var res map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res["ok"] != false {
+		t.Fatalf("expected ok=false with one unresolved, got %v", res)
+	}
+	if res["total"] != float64(2) {
+		t.Fatalf("expected total=2, got %v", res)
+	}
+
+	missing, err := New(t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req = httptest.NewRequest("GET", "/api/users", nil)
+	rec = httptest.NewRecorder()
+	missing.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("missing config status %d, want 400", rec.Code)
+	}
+}
+
 func TestPreflightMissingReport(t *testing.T) {
 	root := t.TempDir()
 	srv, err := New(root, nil)
