@@ -40,6 +40,7 @@ pre{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);
   font-weight:700;font-size:13px;margin-bottom:10px}
 .verdict.ok{background:var(--ok-bg);color:var(--ok)}
 .verdict.warn{background:var(--warn-bg);color:var(--warn)}
+.verdict.fail{background:#FEF2F2;color:#B91C1C}
 .btn{background:var(--dark);color:#fff;border:0;border-radius:10px;
   padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:wait}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -37,6 +38,7 @@ func (s *Server) handlePreflightRun(w http.ResponseWriter, r *http.Request) {
 	s.log(r, "preflight run", "projectDir", dir)
 
 	report := preflight.Run(&cfg)
+	result := toResult(report)
 	path := filepath.Join(cfg.ProjectDir, "reports", "preflight.md")
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -46,7 +48,10 @@ func (s *Server) handlePreflightRun(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, toResult(report))
+	if raw, err := json.MarshalIndent(result, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(cfg.ProjectDir, "reports", "preflight.json"), raw, 0644)
+	}
+	writeJSON(w, result)
 }
 
 func toResult(r *preflight.Report) PreflightResult {

@@ -5,8 +5,13 @@ async function getJSON(url) {
 }
 
 function setVerdict(el, verdict) {
-  el.textContent = verdict ? "Conclusion: " + verdict : "No cached report yet";
-  el.className = "verdict" + (/WARN/.test(verdict || "") ? " warn" : /READY|PASS/.test(verdict || "") ? " ok" : "");
+  const v = verdict || "";
+  el.textContent = v ? "Conclusion: " + v : "No cached report yet";
+  let cls = "verdict";
+  if (/BLOCKED|NOT READY|FAIL/.test(v)) cls += " fail";
+  else if (/WARN/.test(v)) cls += " warn";
+  else if (/READY|PASS/.test(v)) cls += " ok";
+  el.className = cls;
 }
 
 async function select(name) {
@@ -24,6 +29,7 @@ async function select(name) {
 async function loadCached(q, name) {
   const pre = await getJSON("/api/preflight" + q);
   setVerdict(document.getElementById("verdict"), pre.verdict);
+  if (pre.checks) renderChecks(pre.checks);
   document.getElementById("report").textContent = pre.exists ? pre.raw : "No reports/preflight.md yet — press Run preflight (or run: trac2gitlab preflight --project-dir projects/" + name + ")";
 }
 
