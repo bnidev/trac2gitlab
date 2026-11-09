@@ -1,11 +1,19 @@
 package gitlab
 
 import (
+	"io"
+
 	gitlab_client "gitlab.com/gitlab-org/api/client-go"
 )
 
 // Wiki represents a GitLab wiki page.
 type Wiki = gitlab_client.Wiki
+
+// WikiAttachment represents a GitLab wiki attachment.
+type WikiAttachment = gitlab_client.WikiAttachment
+
+// UploadWikiAttachmentOptions defines the options for uploading a wiki attachment.
+type UploadWikiAttachmentOptions = gitlab_client.UploadWikiAttachmentOptions
 
 // WikiFormatMarkdown is the GitLab wiki Markdown format.
 const WikiFormatMarkdown = gitlab_client.WikiFormatMarkdown
@@ -44,4 +52,13 @@ func (c *Client) EditWikiPage(projectID any, slug string, opts *gitlab_client.Ed
 		return nil, err
 	}
 	return page, nil
+}
+
+// UploadWikiAttachment uploads an attachment to a project wiki.
+func (c *Client) UploadWikiAttachment(projectID any, content io.Reader, filename string, opts *gitlab_client.UploadWikiAttachmentOptions) (*WikiAttachment, error) {
+	attachment, _, err := c.git.Wikis.UploadWikiAttachment(projectID, content, filename, opts)
+	if err != nil {
+		return nil, err
+	}
+	return attachment, nil
 }
