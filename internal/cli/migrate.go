@@ -51,6 +51,7 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 				return err
 			}
 
+			failed := false
 			runPhase := func(name string, fn func() (importer.Result, error)) error {
 				run.StartPhase(name)
 				if err := run.Save(statePath); err != nil {
@@ -59,62 +60,60 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 				result, err := fn()
 				run.FinishPhase(name, result.Total, result.Completed, result.Failed, result.Errors)
 				if err != nil {
+					failed = true
 					run.Status = state.StatusFailed
-					run.Finish()
+					slog.Error("Phase failed", "phase", name, "errorMsg", err)
+				} else if result.Failed > 0 {
+					failed = true
+					run.Status = state.StatusFailed
+					slog.Warn("Phase completed with errors", "phase", name, "failed", result.Failed)
 				}
 				if saveErr := run.Save(statePath); saveErr != nil {
 					return saveErr
 				}
-				return err
+				return nil
 			}
 
 			if dryRun {
 				slog.Info("Running in dry-run mode; pass --execute to write to GitLab")
 			}
 
-			if cfg.ImportOptions.ImportMilestones {
-				if err := runPhase("milestones", func() (importer.Result, error) {
+			phases := []struct {
+				name    string
+				enabled bool
+				fn      func() (importer.Result, error)
+			}{
+				{"milestones", cfg.ImportOptions.ImportMilestones, func() (importer.Result, error) {
 					return importer.Result{}, importer.ImportMilestones(client, &cfg)
-				}); err != nil {
-					return fmt.Errorf("milestone import failed: %w", err)
-				}
-			}
-
-			if cfg.ImportOptions.ImportIssues {
-				if err := runPhase("issues", func() (importer.Result, error) {
+				}},
+				{"issues", cfg.ImportOptions.ImportIssues, func() (importer.Result, error) {
 					return importer.ImportIssues(client, &cfg)
-				}); err != nil {
-					return fmt.Errorf("issue import failed: %w", err)
-				}
-			}
-
-			if cfg.ImportOptions.ImportNotes {
-				if err := runPhase("notes", func() (importer.Result, error) {
+				}},
+				{"notes", cfg.ImportOptions.ImportNotes, func() (importer.Result, error) {
 					return importer.ImportNotes(client, &cfg)
-				}); err != nil {
-					return fmt.Errorf("note import failed: %w", err)
-				}
-			}
-
-			if cfg.ImportOptions.ImportAttachments {
-				if err := runPhase("attachments", func() (importer.Result, error) {
+				}},
+				{"attachments", cfg.ImportOptions.ImportAttachments, func() (importer.Result, error) {
 					return importer.ImportAttachments(client, &cfg)
-				}); err != nil {
-					return fmt.Errorf("attachment import failed: %w", err)
-				}
-			}
-
-			if cfg.ImportOptions.ImportWiki {
-				if err := runPhase("wiki", func() (importer.Result, error) {
+				}},
+				{"wiki", cfg.ImportOptions.ImportWiki, func() (importer.Result, error) {
 					return importer.ImportWiki(client, &cfg)
-				}); err != nil {
-					return fmt.Errorf("wiki import failed: %w", err)
+				}},
+			}
+			for _, phase := range phases {
+				if !phase.enabled {
+					continue
+				}
+				if err := runPhase(phase.name, phase.fn); err != nil {
+					return err
 				}
 			}
 
 			run.Finish()
 			if err := run.Save(statePath); err != nil {
 				return err
+			}
+			if failed {
+				return fmt.Errorf("migration completed with errors; see state/migration.yaml")
 			}
 			return nil
 		},

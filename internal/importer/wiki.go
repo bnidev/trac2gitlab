@@ -67,7 +67,8 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		content, err := os.ReadFile(page.ContentPath)
 		if err != nil {
 			result.fail(err)
-			return result, fmt.Errorf("read wiki page %q: %w", name, err)
+			slog.Error("Skipping wiki page", "page", name, "errorMsg", err)
+			continue
 		}
 		if cfg.DryRun {
 			slog.Info("dry-run: would import wiki page", "page", name)
@@ -78,7 +79,8 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		section, err := uploadWikiAttachments(client, project.ID, cfg, name, page.Meta.Attachments, attachmentMap, attachmentIndex, attachmentsPath)
 		if err != nil {
 			result.fail(err)
-			return result, err
+			slog.Error("Skipping wiki page", "page", name, "errorMsg", err)
+			continue
 		}
 		body := wikiContent(string(content)+section, page.Meta)
 		body = refs.Rewrite(body)
@@ -95,7 +97,8 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 				Format:  &format,
 			}); err != nil {
 				result.fail(err)
-				return result, fmt.Errorf("update wiki page %q: %w", name, err)
+				slog.Error("Failed to update wiki page", "page", name, "errorMsg", err)
+				continue
 			}
 			result.Completed++
 			continue
@@ -108,7 +111,8 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 			Format:  &format,
 		}); err != nil {
 			result.fail(err)
-			return result, fmt.Errorf("create wiki page %q: %w", name, err)
+			slog.Error("Failed to create wiki page", "page", name, "errorMsg", err)
+			continue
 		}
 		result.Completed++
 	}

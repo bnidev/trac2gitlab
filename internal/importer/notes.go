@@ -126,7 +126,8 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 			})
 			if err != nil {
 				result.fail(err)
-				return result, fmt.Errorf("create note for ticket %d comment %d: %w", ticket.ID, i, err)
+				slog.Error("Failed to create note", "ticket", ticket.ID, "index", i, "errorMsg", err)
+				continue
 			}
 
 			noteMap.Notes = append(noteMap.Notes, noteRecord{
