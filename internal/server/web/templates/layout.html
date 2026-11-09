@@ -3,83 +3,108 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>trac2gitlab · dashboard</title>
+<title>trac2gitlab · wizard</title>
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">◈ trac2gitlab</div>
-  <div class="proj mono" id="projLabel">read-only dashboard</div>
-  <div class="env mono">local · serve (slice 1)</div>
+  <div class="proj mono" id="projLabel">wizard</div>
+  <div class="env mono">local · stepwise wizard</div>
 </header>
 <div class="layout">
   <aside class="sidebar">
     <div class="side-h mono">MIGRATION</div>
-    <nav id="steps">
-      <div class="step active"><span class="dot">1</span><span>Connect</span></div>
-      <div class="step"><span class="dot">2</span><span>Preflight</span></div>
-      <div class="step"><span class="dot">3</span><span>Identities</span></div>
-      <div class="step"><span class="dot">4</span><span>Export</span></div>
-      <div class="step"><span class="dot">5</span><span>Dry-run</span></div>
-      <div class="step locked"><span class="dot">6</span><span>Execute</span></div>
-      <div class="step"><span class="dot">7</span><span>Patch + Validate</span></div>
-    </nav>
+    <nav id="steps"></nav>
     <div class="side-h mono">PROJECTS</div>
     <nav id="projects">
       {{range .Projects}}<button class="proj-btn mono" data-name="{{.Name}}">{{.Name}}</button>{{else}}<div class="empty">No projects in <span class="mono">{{.Root}}</span> yet.<br><br>Create one:<br><code class="mono">trac2gitlab init --project-dir projects/demo</code><br><br>Or serve a single existing dir:<br><code class="mono">serve --projects-root .</code></div>{{end}}
     </nav>
-    <div class="hint">Wizard runs export + dry-run locally. Only an explicit execute writes to GitLab.</div>
+    <div class="hint">Steps gate each other: preflight first, execute only when READY. Only an explicit execute writes to GitLab.</div>
   </aside>
   <main class="center">
-    <h1>Preflight</h1>
-    <p class="sub">Read-only checks from <span class="mono">reports/preflight.md</span>. No target mutation until READY.</p>
-    <section class="card">
-      <div class="card-h mono">STATUS · state/migration.yaml</div>
-      <pre id="status" class="mono">select a project…</pre>
-    </section>
-    <section class="card">
-      <div class="card-h mono">CHECKLIST · cached preflight report</div>
-      <div class="row"><button id="runPreflight" class="btn">Run preflight</button><span class="muted" id="runHint">read-only · writes reports/preflight.md</span></div>
-      <div id="checks"></div>
-      <div id="verdict" class="verdict">—</div>
-      <details><summary class="mono muted">raw report</summary><pre id="report" class="mono">select a project…</pre></details>
-    </section>
-    <section class="card">
-      <div class="card-h mono">EXPORT · data/ (read-only vs Trac)</div>
-      <div class="row"><button id="runExport" class="btn">Run export</button><span class="muted">pulls tickets, wiki, users into data/</span></div>
-      <div id="exportVerdict" class="verdict">—</div>
-    </section>
-    <section class="card">
-      <div class="card-h mono">DRY-RUN · state/migration.yaml (no GitLab writes)</div>
-      <div class="row"><button id="runDryRun" class="btn">Run dry-run</button><span class="muted">previews per-phase counts</span></div>
-      <div id="jobStatus" class="verdict">—</div>
-      <pre id="jobLog" class="mono">no job yet</pre>
-    </section>
-    <section class="card">
-      <div class="card-h mono">EXECUTE · writes to GitLab (gated)</div>
-      <div class="row"><label class="confirm"><input type="checkbox" id="confirmExecute"> <span>I confirm writing to GitLab. No force, no undo.</span></label></div>
-      <div class="row"><button id="runExecute" class="btn danger" disabled>Execute --execute</button><span class="muted">requires READY preflight + dry-run review</span></div>
-      <div id="executeVerdict" class="verdict">—</div>
-    </section>
-    <section class="card">
-      <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>
-      <div class="row"><button id="validateUsers" class="btn">Validate</button><span class="muted" id="usersHint">local parse only · --check-gitlab stays in the CLI</span></div>
-      <div id="users"></div>
-      <div id="usersVerdict" class="verdict">—</div>
-    </section>
-    <section class="card">
-      <div class="card-h mono">PATCH · author restore (copy to GitLab host)</div>
-      <div class="row"><button id="loadPatch" class="btn">Preview patch</button>
-        <label class="muted"><input type="checkbox" id="patchApply"> apply (DRY_RUN=false)</label>
-        <button id="copyPatch" class="btn">Copy</button></div>
-      <div id="patchVerdict" class="verdict">—</div>
-      <details open><summary class="mono muted">shell block</summary><pre id="patchShell" class="mono">press Preview patch…</pre></details>
-    </section>
-    <section class="card">
-      <div class="card-h mono">VALIDATION · reports/validation.md</div>
-      <div class="row"><button id="runValidate" class="btn">Run validate</button><span class="muted">compares export with GitLab target</span></div>
-      <pre id="validation" class="mono">—</pre>
-    </section>
+    <h1 id="headline">Connect</h1>
+    <p class="sub" id="subhead"></p>
+
+    <div class="step-pane" id="pane-connect">
+      <section class="card">
+        <div class="card-h mono">PROJECT · migration.yaml + .env</div>
+        <div id="projectInfo" class="muted">select a project…</div>
+      </section>
+      <div class="pager"><span></span><button class="btn" data-goto="preflight">Next: Preflight →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-preflight">
+      <section class="card">
+        <div class="card-h mono">STATUS · state/migration.yaml</div>
+        <pre id="status" class="mono">select a project…</pre>
+      </section>
+      <section class="card">
+        <div class="card-h mono">CHECKLIST · cached preflight report</div>
+        <div class="row"><button id="runPreflight" class="btn">Run preflight</button><span class="muted" id="runHint">read-only · writes reports/preflight.md</span></div>
+        <div id="checks"></div>
+        <div id="verdict" class="verdict">—</div>
+        <details><summary class="mono muted">raw report</summary><pre id="report" class="mono">select a project…</pre></details>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="connect">← Back</button><button class="btn" data-goto="identities">Next: Identities →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-identities">
+      <section class="card">
+        <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>
+        <div class="row"><button id="validateUsers" class="btn">Validate</button><span class="muted" id="usersHint">local parse only · --check-gitlab stays in the CLI</span></div>
+        <div id="users"></div>
+        <div id="usersVerdict" class="verdict">—</div>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="preflight">← Back</button><button class="btn" data-goto="export">Next: Export →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-export">
+      <section class="card">
+        <div class="card-h mono">EXPORT · data/ (read-only vs Trac)</div>
+        <div class="row"><button id="runExport" class="btn">Run export</button><span class="muted">pulls tickets, wiki, users into data/</span></div>
+        <div id="exportVerdict" class="verdict">—</div>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="identities">← Back</button><button class="btn" data-goto="dryrun">Next: Dry-run →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-dryrun">
+      <section class="card">
+        <div class="card-h mono">DRY-RUN · state/migration.yaml (no GitLab writes)</div>
+        <div class="row"><button id="runDryRun" class="btn">Run dry-run</button><span class="muted">previews per-phase counts</span></div>
+        <div id="jobStatus" class="verdict">—</div>
+        <pre id="jobLog" class="mono">no job yet</pre>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="export">← Back</button><button class="btn" data-goto="execute">Next: Execute →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-execute">
+      <section class="card">
+        <div class="card-h mono">EXECUTE · writes to GitLab (gated)</div>
+        <div class="row"><label class="confirm"><input type="checkbox" id="confirmExecute"> <span>I confirm writing to GitLab. No force, no undo.</span></label></div>
+        <div class="row"><button id="runExecute" class="btn danger" disabled>Execute --execute</button><span class="muted">requires READY preflight + dry-run review</span></div>
+        <div id="executeVerdict" class="verdict">—</div>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="dryrun">← Back</button><button class="btn" data-goto="finish">Next: Patch + Validate →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-finish">
+      <section class="card">
+        <div class="card-h mono">PATCH · author restore (copy to GitLab host)</div>
+        <div class="row"><button id="loadPatch" class="btn">Preview patch</button>
+          <label class="muted"><input type="checkbox" id="patchApply"> apply (DRY_RUN=false)</label>
+          <button id="copyPatch" class="btn">Copy</button></div>
+        <div id="patchVerdict" class="verdict">—</div>
+        <details open><summary class="mono muted">shell block</summary><pre id="patchShell" class="mono">press Preview patch…</pre></details>
+      </section>
+      <section class="card">
+        <div class="card-h mono">VALIDATION · reports/validation.md</div>
+        <div class="row"><button id="runValidate" class="btn">Run validate</button><span class="muted">compares export with GitLab target</span></div>
+        <pre id="validation" class="mono">—</pre>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="execute">← Back</button><span></span></div>
+    </div>
+
   </main>
 </div>
 <script src="/static/app.js" defer></script>

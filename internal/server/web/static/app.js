@@ -26,10 +26,66 @@ function setVerdict(el, verdict) {
   el.className = cls;
 }
 
+// ---- Step navigation ----
+const STEPS = [
+  {id: "connect", n: 1, title: "Connect", sub: "Pick a migration project. Config lives in migration.yaml, secrets in .env — never shown here."},
+  {id: "preflight", n: 2, title: "Preflight", sub: "Read-only checks. No target mutation until READY."},
+  {id: "identities", n: 3, title: "Identities", sub: "Map Trac authors to GitLab users. Unresolved get an explicit footer."},
+  {id: "export", n: 4, title: "Export", sub: "Pull tickets, wiki and users from Trac into data/. Read-only vs Trac."},
+  {id: "dryrun", n: 5, title: "Dry-run", sub: "Preview per-phase counts in state/migration.yaml. Nothing written to GitLab."},
+  {id: "execute", n: 6, title: "Execute", sub: "Writes to GitLab. Requires READY preflight plus your explicit confirmation."},
+  {id: "finish", n: 7, title: "Patch + Validate", sub: "Restore authors on the GitLab host, then compare export with target."},
+];
+
+function showStep(id) {
+  window.currentStep = id;
+  for (const s of STEPS) {
+    document.getElementById("pane-" + s.id).classList.toggle("on", s.id === id);
+  }
+  const cur = STEPS.find(s => s.id === id);
+  document.getElementById("headline").textContent = cur.title;
+  document.getElementById("subhead").textContent = cur.sub;
+  document.querySelectorAll("#steps .step").forEach(el => {
+    el.classList.toggle("active", el.dataset.step === id);
+  });
+}
+
+function renderSteps() {
+  const nav = document.getElementById("steps");
+  nav.innerHTML = "";
+  for (const s of STEPS) {
+    const d = document.createElement("div");
+    d.className = "step" + (s.id === "execute" ? " locked" : "");
+    d.dataset.step = s.id;
+    d.innerHTML = '<span class="dot">' + s.n + '</span><span>' + s.title + '</span>';
+    d.addEventListener("click", () => showStep(s.id));
+    nav.appendChild(d);
+  }
+}
+
+async function loadProjectInfo(name) {
+  const list = await getJSON("/api/projects");
+  const p = (list || []).find(x => x.name === name);
+  const el = document.getElementById("projectInfo");
+  if (!p) {
+    el.textContent = "select a project…";
+    return;
+  }
+  const rows = [
+    ["config", p.hasConfig ? "migration.yaml present" : "missing — run init"],
+    ["export data", p.hasState || p.hasConfig ? "see data/ after export" : "—"],
+    ["state", p.hasState ? "state/migration.yaml present" : "no run yet"],
+    ["preflight", p.hasPreflight ? "reports/preflight.md present" : "not run yet"],
+    ["validation", p.hasValidation ? "reports/validation.md present" : "not run yet"],
+  ];
+  el.innerHTML = rows.map(r => '<div class="kv"><span class="mono">' + r[0] + '</span><span>' + r[1] + '</span></div>').join("");
+}
+
 async function select(name) {
   document.querySelectorAll(".proj-btn").forEach(b => b.classList.toggle("sel", b.dataset.name === name));
   document.getElementById("projLabel").textContent = "projects / " + name;
   window.currentProject = name;
+  await loadProjectInfo(name);
   const q = "?project=" + encodeURIComponent(name);
   const status = await getJSON("/api/status" + q);
   document.getElementById("status").textContent = JSON.stringify(status, null, 2);
@@ -293,6 +349,9 @@ async function runPreflight() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  renderSteps();
+  showStep("connect");
+  document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showStep(b.dataset.goto)));
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);
   document.getElementById("validateUsers").addEventListener("click", validateUsers);
