@@ -38,8 +38,6 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 		return fmt.Errorf("failed to read milestones from directory: %w", err)
 	}
 
-	userSessionCache := gitlab.NewUserSessionCache()
-
 	for _, issueData := range issues {
 		flat, err := ConvertToFlatIssue(issueData, client, project.ID)
 		if err != nil {
@@ -49,8 +47,9 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 		if existingIssue, err := client.GetIssue(project.ID, flat.ID); err != nil {
 			slog.Debug("Importing new issue", "ID", flat.ID, "Title", flat.Title)
 
-			// Create the issue in GitLab
-			_, err := client.CreateIssueAsUser(config, userSessionCache, project.ID, flat.Reporter, &gitlab.CreateIssueOptions{
+			// Create as the admin client: only admin/owner can set IID and CreatedAt.
+			// Author attribution is fixed by the patch pass.
+			created, err := client.CreateIssue(project.ID, &gitlab.CreateIssueOptions{
 				IID:         &flat.ID,
 				Title:       &flat.Title,
 				Description: &flat.Description,
@@ -59,6 +58,9 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create issue %d: %w", flat.ID, err)
+			}
+			if created.IID != flat.ID {
+				return fmt.Errorf("issue %d was created with IID %d: admin/owner rights are required to preserve IIDs", flat.ID, created.IID)
 			}
 
 			// Update the issue status, because it cant be set on create
@@ -132,8 +134,6 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 		}
 
 	}
-	userSessionCache.RevokeAll(client)
-
 	return nil
 }
 
