@@ -37,3 +37,19 @@ pre{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);
   font-weight:700;font-size:13px;margin-bottom:10px}
 .verdict.ok{background:var(--ok-bg);color:var(--ok)}
 .verdict.warn{background:var(--warn-bg);color:var(--warn)}
+.btn{background:var(--dark);color:#fff;border:0;border-radius:10px;
+  padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.check{display:flex;gap:12px;align-items:center;padding:10px 12px;
+  border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
+.badge{width:28px;height:28px;border-radius:9999px;display:flex;
+  align-items:center;justify-content:center;font-weight:700}
+.badge.pass{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.fail{background:#FEF2F2;color:#B91C1C}
+.check .n{font-weight:600;font-size:14px}
+.check .d{color:var(--muted);font-size:12px}
+.check .pill{margin-left:auto;font-size:11px;font-weight:700}
+details{margin-top:10px}
+summary{cursor:pointer;font-size:12px}
