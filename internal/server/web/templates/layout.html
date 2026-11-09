@@ -26,7 +26,7 @@
     </nav>
     <div class="side-h mono">PROJECTS</div>
     <nav id="projects">
-      {{range .Projects}}<button class="proj-btn mono" data-name="{{.Name}}">{{.Name}}</button>{{else}}<div class="muted">No projects in {{.Root}}</div>{{end}}
+      {{range .Projects}}<button class="proj-btn mono" data-name="{{.Name}}">{{.Name}}</button>{{else}}<div class="empty">No projects in <span class="mono">{{.Root}}</span> yet.<br><br>Create one:<br><code class="mono">trac2gitlab init --project-dir projects/demo</code><br><br>Or serve a single existing dir:<br><code class="mono">serve --projects-root .</code></div>{{end}}
     </nav>
     <div class="hint">Slice 1 is read-only: status + cached reports only. No target mutation.</div>
   </aside>

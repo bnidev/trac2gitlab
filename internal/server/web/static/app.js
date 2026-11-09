@@ -44,7 +44,10 @@ function renderChecks(checks) {
 async function runPreflight() {
   const btn = document.getElementById("runPreflight");
   const name = window.currentProject;
-  if (!name) return;
+  if (!name) {
+    document.getElementById("verdict").textContent = "No project selected — create one with: trac2gitlab init --project-dir projects/demo";
+    return;
+  }
   btn.disabled = true;
   btn.textContent = "Running…";
   try {
