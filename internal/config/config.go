@@ -38,6 +38,7 @@ type ReferenceOptions struct {
 	Enabled        bool   `yaml:"enabled"`
 	TicketsFile    string `yaml:"tickets_file"`
 	ChangesetsFile string `yaml:"changesets_file"`
+	WikiFile       string `yaml:"wiki_file"`
 }
 
 // General holds general configuration options
@@ -201,6 +202,12 @@ func normalize(cfg *Config, projectDir string) {
 	if !filepath.IsAbs(cfg.References.ChangesetsFile) {
 		cfg.References.ChangesetsFile = filepath.Join(projectDir, cfg.References.ChangesetsFile)
 	}
+	if cfg.References.WikiFile == "" {
+		cfg.References.WikiFile = "mappings/wiki-pages.json"
+	}
+	if !filepath.IsAbs(cfg.References.WikiFile) {
+		cfg.References.WikiFile = filepath.Join(projectDir, cfg.References.WikiFile)
+	}
 	if cfg.Labels.Prefix == "" {
 		cfg.Labels.Prefix = "trac"
 	}
@@ -301,6 +308,7 @@ func DefaultConfig() Config {
 			Enabled:        true,
 			TicketsFile:    "mappings/trac-tickets.json",
 			ChangesetsFile: "mappings/hg-changesets.json",
+			WikiFile:       "mappings/wiki-pages.json",
 		},
 		Labels: LabelOptions{
 			Enabled:       true,

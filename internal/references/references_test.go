@@ -11,6 +11,7 @@ func testRefs() *Refs {
 		enabled:     true,
 		tickets:     map[int64]int64{1: 3, 3: 5},
 		changesets:  map[string]string{"abc123456789": "def456789abc"},
+		wiki:        map[string]string{"local-dev-setup": "local-dev-setup", "my page": "my-page"},
 		baseURL:     "https://gitlab.example.com",
 		projectPath: "group/project",
 	}
@@ -36,6 +37,31 @@ func TestChangesetRewrite(t *testing.T) {
 	}
 	if !strings.Contains(got, "[deadbeef]") {
 		t.Fatalf("unknown bracket hash should stay: %q", got)
+	}
+}
+
+func TestWikiRewrite(t *testing.T) {
+	r := testRefs()
+	base := "https://gitlab.example.com/group/project/-/wikis/"
+	cases := map[string]string{
+		"[wiki:local-dev-setup Setup]": "[Setup](" + base + "local-dev-setup)",
+		"[wiki:my page]":               "[my page](" + base + "my-page)",
+		"wiki:local-dev-setup":         "[local-dev-setup](" + base + "local-dev-setup)",
+		"[Guide](local-dev-setup.md)":  "[Guide](" + base + "local-dev-setup)",
+	}
+	for in, want := range cases {
+		if got := r.Rewrite(in); got != want {
+			t.Errorf("Rewrite(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := r.Rewrite("wiki:missing"); got != "wiki:missing" {
+		t.Errorf("unknown wiki = %q", got)
+	}
+}
+
+func TestSlug(t *testing.T) {
+	if got := Slug("My Page / Sub_page"); got != "my-page-/-sub-page" {
+		t.Fatalf("Slug = %q", got)
 	}
 }
 

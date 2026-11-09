@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
-	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
@@ -23,13 +22,7 @@ type WikiPageFile struct {
 func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	var result Result
 
-	refs, err := references.Load(references.Options{
-		Enabled:        cfg.References.Enabled,
-		TicketsFile:    cfg.References.TicketsFile,
-		ChangesetsFile: cfg.References.ChangesetsFile,
-		BaseURL:        cfg.GitLab.BaseURL,
-		ProjectPath:    cfg.GitLab.ProjectPath,
-	})
+	refs, err := loadReferences(cfg)
 	if err != nil {
 		return result, err
 	}
