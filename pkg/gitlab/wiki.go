@@ -27,13 +27,22 @@ type EditWikiPageOptions = gitlab_client.EditWikiPageOptions
 // ListWikisOptions defines the options for listing wiki pages.
 type ListWikisOptions = gitlab_client.ListWikisOptions
 
-// ListWikis lists project wiki pages.
+// ListWikis lists project wiki pages, following pagination.
 func (c *Client) ListWikis(projectID any, withContent bool) ([]*Wiki, error) {
-	pages, _, err := c.git.Wikis.ListWikis(projectID, &gitlab_client.ListWikisOptions{WithContent: &withContent})
-	if err != nil {
-		return nil, err
+	var all []*Wiki
+	var opts []gitlab_client.RequestOptionFunc
+	for {
+		pages, resp, err := c.git.Wikis.ListWikis(projectID, &gitlab_client.ListWikisOptions{WithContent: &withContent}, opts...)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, pages...)
+		next, ok := gitlab_client.WithNext(resp)
+		if !ok {
+			return all, nil
+		}
+		opts = []gitlab_client.RequestOptionFunc{next}
 	}
-	return pages, nil
 }
 
 // CreateWikiPage creates a project wiki page.
