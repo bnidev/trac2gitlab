@@ -1,0 +1,14 @@
+# Example identity mapping for `trac2gitlab users validate`.
+# Copy to mappings/users.yaml (gitignored) and fill in your users.
+users:
+  john-doe:
+    # Any of these aliases may appear in Trac changelogs / ticket fields.
+    trac_username: jdoe
+    trac_display_name: John Doe
+    # hg_author: John Doe
+    gitlab: jdoe
+    confidence: manual
+  jane-doe:
+    trac_username: jane
+    action: unresolved
+    confidence: manual
