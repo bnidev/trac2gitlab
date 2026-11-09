@@ -158,7 +158,10 @@ async function testConnection(kind) {
     el.textContent = body.message;
     el.className = "verdict " + (body.ok ? "ok" : "fail");
   } catch (e) {
-    el.textContent = "Test failed: " + e.message;
+    const msg = e instanceof TypeError && e.message === "Failed to fetch"
+      ? "no response — is trac2gitlab serve still running?"
+      : e.message;
+    el.textContent = "Test failed: " + msg;
     el.className = "verdict fail";
   }
 }
