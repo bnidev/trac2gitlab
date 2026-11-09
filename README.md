@@ -103,10 +103,15 @@ references:
   enabled: true
   tickets_file: mappings/trac-tickets.json
   changesets_file: mappings/hg-changesets.json
+  wiki_file: mappings/wiki-pages.json
 ```
 
 - `trac-tickets.json`: `{"tickets": {"1": 3}}` (Trac ID → GitLab IID)
 - `hg-changesets.json`: `{"changesets": {"<hg-node>": "<git-sha>"}}`
+- `wiki-pages.json`: `{"pages": {"Trac Page": "gitlab-slug"}}` (optional overrides)
+
+Wiki links (`wiki:Page`, `[wiki:Page]`, `[Label](Page.md)`) are rewritten using
+the exported page names plus optional overrides. Missing pages are left alone.
 
 Missing files are allowed: ticket references stay unchanged, and changeset
 references are left as-is. Fenced code blocks are not rewritten.

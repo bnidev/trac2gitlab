@@ -26,6 +26,7 @@ references:
     enabled: true
     tickets_file: mappings/trac-tickets.json
     changesets_file: mappings/hg-changesets.json
+    wiki_file: mappings/wiki-pages.json
 
 labels:
     enabled: true

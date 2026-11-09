@@ -13,7 +13,6 @@ import (
 	"github.com/bnidev/trac2gitlab/internal/config"
 	"github.com/bnidev/trac2gitlab/internal/identity"
 	"github.com/bnidev/trac2gitlab/internal/labels"
-	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/internal/utils"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
@@ -35,13 +34,7 @@ func (r *Result) fail(err error) {
 func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) {
 	var result Result
 
-	refs, err := references.Load(references.Options{
-		Enabled:        config.References.Enabled,
-		TicketsFile:    config.References.TicketsFile,
-		ChangesetsFile: config.References.ChangesetsFile,
-		BaseURL:        config.GitLab.BaseURL,
-		ProjectPath:    config.GitLab.ProjectPath,
-	})
+	refs, err := loadReferences(config)
 	if err != nil {
 		return result, err
 	}

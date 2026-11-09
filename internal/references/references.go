@@ -14,6 +14,8 @@ type Options struct {
 	Enabled        bool
 	TicketsFile    string
 	ChangesetsFile string
+	WikiFile       string
+	WikiPages      []string
 	BaseURL        string
 	ProjectPath    string
 }
@@ -22,6 +24,7 @@ type Refs struct {
 	enabled     bool
 	tickets     map[int64]int64
 	changesets  map[string]string
+	wiki        map[string]string
 	baseURL     string
 	projectPath string
 }
@@ -34,11 +37,16 @@ type changesetFile struct {
 	Changesets map[string]string `json:"changesets"`
 }
 
+type wikiFile struct {
+	Pages map[string]string `json:"pages"`
+}
+
 func Load(opts Options) (*Refs, error) {
 	r := &Refs{
 		enabled:     opts.Enabled,
 		tickets:     make(map[int64]int64),
 		changesets:  make(map[string]string),
+		wiki:        make(map[string]string),
 		baseURL:     strings.TrimRight(opts.BaseURL, "/"),
 		projectPath: strings.Trim(opts.ProjectPath, "/"),
 	}
@@ -50,6 +58,15 @@ func Load(opts Options) (*Refs, error) {
 	}
 	if err := loadChangesets(opts.ChangesetsFile, r.changesets); err != nil {
 		return nil, fmt.Errorf("load changeset mapping: %w", err)
+	}
+	if err := loadWiki(opts.WikiFile, r.wiki); err != nil {
+		return nil, fmt.Errorf("load wiki mapping: %w", err)
+	}
+	for _, page := range opts.WikiPages {
+		key := normalizePage(page)
+		if _, ok := r.wiki[key]; !ok {
+			r.wiki[key] = Slug(page)
+		}
 	}
 	return r, nil
 }
@@ -93,6 +110,24 @@ func loadChangesets(path string, out map[string]string) error {
 	return nil
 }
 
+func loadWiki(path string, out map[string]string) error {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var file wikiFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		return err
+	}
+	for page, slug := range file.Pages {
+		out[normalizePage(page)] = slug
+	}
+	return nil
+}
+
 func (r *Refs) Rewrite(text string) string {
 	if r == nil || !r.enabled || text == "" {
 		return text
@@ -116,6 +151,10 @@ var (
 	changesetRe      = regexp.MustCompile(`(?i)\bchangeset:([0-9a-f]{6,40})\b`)
 	bracketHashRe    = regexp.MustCompile(`\[([0-9a-f]{6,40})\]`)
 	changesetMarker  = regexp.MustCompile("\x00C(\\d+)\x00")
+	wikiLabelRe      = regexp.MustCompile(`(?i)\[wiki:([^\s\]]+)\s+([^\]]+)\]`)
+	wikiBracketRe    = regexp.MustCompile(`(?i)\[wiki:([^\]]+)\]`)
+	wikiPrefixRe     = regexp.MustCompile(`(?i)\bwiki:([^\s\]]+)`)
+	wikiMdLinkRe     = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\.md\)`)
 )
 
 func (r *Refs) rewriteText(text string) string {
@@ -175,7 +214,71 @@ func (r *Refs) rewriteText(text string) string {
 		idx, _ := strconv.Atoi(changesetMarker.FindStringSubmatch(m)[1])
 		return links[idx]
 	})
+
+	text = wikiLabelRe.ReplaceAllStringFunc(text, func(m string) string {
+		sub := wikiLabelRe.FindStringSubmatch(m)
+		if url, ok := r.wikiURL(sub[1]); ok {
+			return fmt.Sprintf("[%s](%s)", sub[2], url)
+		}
+		return m
+	})
+	text = wikiBracketRe.ReplaceAllStringFunc(text, func(m string) string {
+		page := wikiBracketRe.FindStringSubmatch(m)[1]
+		if url, ok := r.wikiURL(page); ok {
+			return fmt.Sprintf("[%s](%s)", page, url)
+		}
+		return m
+	})
+	text = wikiPrefixRe.ReplaceAllStringFunc(text, func(m string) string {
+		page := wikiPrefixRe.FindStringSubmatch(m)[1]
+		if url, ok := r.wikiURL(page); ok {
+			return fmt.Sprintf("[%s](%s)", page, url)
+		}
+		return m
+	})
+	text = wikiMdLinkRe.ReplaceAllStringFunc(text, func(m string) string {
+		sub := wikiMdLinkRe.FindStringSubmatch(m)
+		if url, ok := r.wikiURL(sub[2]); ok {
+			return fmt.Sprintf("[%s](%s)", sub[1], url)
+		}
+		return m
+	})
 	return text
+}
+
+func (r *Refs) wikiURL(page string) (string, bool) {
+	slug, ok := r.wiki[normalizePage(page)]
+	if !ok {
+		return "", false
+	}
+	if r.baseURL == "" || r.projectPath == "" {
+		return slug, true
+	}
+	return fmt.Sprintf("%s/%s/-/wikis/%s", r.baseURL, r.projectPath, slug), true
+}
+
+func normalizePage(page string) string {
+	return strings.ToLower(strings.TrimSpace(page))
+}
+
+// Slug approximates GitLab's wiki slug for a page title.
+func Slug(name string) string {
+	value := strings.ToLower(strings.TrimSpace(name))
+	value = strings.NewReplacer(" ", "-", "_", "-").Replace(value)
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '/' {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if r == '-' && !lastDash {
+			b.WriteRune(r)
+			lastDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 
 func marker(iid int64) string {
