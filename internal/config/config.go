@@ -50,11 +50,12 @@ type ExportOptions struct {
 
 // ImportOptions holds the options for importing data into GitLab
 type ImportOptions struct {
-	ImportIssues     bool   `yaml:"import_issues"`
-	ImportMilestones bool   `yaml:"import_milestones"`
-	ImportNotes      bool   `yaml:"import_notes"`
-	UsersFile        string `yaml:"users_file"`
-	CreateUsers      bool   `yaml:"create_users"`
+	ImportIssues      bool   `yaml:"import_issues"`
+	ImportMilestones  bool   `yaml:"import_milestones"`
+	ImportNotes       bool   `yaml:"import_notes"`
+	ImportAttachments bool   `yaml:"import_attachments"`
+	UsersFile         string `yaml:"users_file"`
+	CreateUsers       bool   `yaml:"create_users"`
 }
 
 // LoadConfig reads the configuration from config.yaml
@@ -133,11 +134,12 @@ func CreateDefaultConfig() error {
 			ExportDir:            "data",
 		},
 		ImportOptions: ImportOptions{
-			ImportIssues:     true,
-			ImportMilestones: true,
-			ImportNotes:      true,
-			UsersFile:        "mappings/users.yaml",
-			CreateUsers:      false,
+			ImportIssues:      true,
+			ImportMilestones:  true,
+			ImportNotes:       true,
+			ImportAttachments: true,
+			UsersFile:         "mappings/users.yaml",
+			CreateUsers:       false,
 		},
 	}
 
