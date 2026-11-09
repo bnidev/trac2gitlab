@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -45,7 +47,47 @@ func (s *Server) handleDryRun(w http.ResponseWriter, r *http.Request) {
 	cfg.DryRun = true
 	s.log(r, "dry-run", "projectDir", dir)
 	job, err := s.Jobs.Start(dir, "dry-run", func(j *Job) error {
-		return runDryRun(&cfg, func(line string) { s.Jobs.Append(j.ID, line) })
+		return runMigrate(&cfg, func(line string) { s.Jobs.Append(j.ID, line) })
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, job)
+}
+
+// executeRequest is the explicit confirmation body for POST /api/migrate/execute.
+type executeRequest struct {
+	Confirm bool `json:"confirm"`
+}
+
+// handleExecute starts migrate with writes enabled. It requires an explicit
+// confirmation in the request body and a passing cached preflight verdict
+// (READY or READY WITH WARNINGS). There is no force bypass.
+func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
+	dir := ResolveProject(s.Root, r.URL.Query().Get("project"))
+	var body executeRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid JSON body, want {\"confirm\": true}", http.StatusBadRequest)
+		return
+	}
+	if !body.Confirm {
+		http.Error(w, "explicit confirmation required: {\"confirm\": true}", http.StatusBadRequest)
+		return
+	}
+	cfg, err := config.LoadProject(dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if verdict := cachedVerdict(dir); verdict != "READY" && verdict != "READY WITH WARNINGS" {
+		http.Error(w, "preflight verdict is "+quoted(verdict)+"; run preflight until READY or READY WITH WARNINGS first", http.StatusConflict)
+		return
+	}
+	cfg.DryRun = false
+	s.log(r, "execute", "projectDir", dir)
+	job, err := s.Jobs.Start(dir, "execute", func(j *Job) error {
+		return runMigrate(&cfg, func(line string) { s.Jobs.Append(j.ID, line) })
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -63,6 +105,27 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, job)
+}
+
+// cachedVerdict returns the verdict from the last live preflight run, or ""
+// when preflight never ran in the wizard.
+func cachedVerdict(dir string) string {
+	raw, err := os.ReadFile(filepath.Join(dir, "reports", "preflight.json"))
+	if err != nil {
+		return ""
+	}
+	var result PreflightResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return ""
+	}
+	return result.Verdict
+}
+
+func quoted(s string) string {
+	if s == "" {
+		return "missing"
+	}
+	return s
 }
 
 // runExport mirrors the export CLI command orchestration.
@@ -101,8 +164,9 @@ func runExport(cfg *config.Config, log func(string)) error {
 	return nil
 }
 
-// runDryRun mirrors the migrate CLI command in dry-run mode.
-func runDryRun(cfg *config.Config, log func(string)) error {
+// runMigrate mirrors the migrate CLI command. cfg.DryRun selects preview
+// (state only) vs execute (writes to GitLab).
+func runMigrate(cfg *config.Config, log func(string)) error {
 	client, err := gitlab.NewGitLabClient(cfg)
 	if err != nil {
 		return fmt.Errorf("create GitLab client: %w", err)
@@ -115,7 +179,7 @@ func runDryRun(cfg *config.Config, log func(string)) error {
 	if err != nil {
 		return err
 	}
-	run.DryRun = true
+	run.DryRun = cfg.DryRun
 	run.Status = state.StatusRunning
 	if err := run.Save(statePath); err != nil {
 		return err

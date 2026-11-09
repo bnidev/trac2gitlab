@@ -4,6 +4,18 @@ async function getJSON(url) {
   return res.json();
 }
 
+// errText reads an error response that may be JSON or plain text
+// (http.Error writes plain text).
+async function errText(res) {
+  const raw = await res.text();
+  try {
+    const body = JSON.parse(raw);
+    return body.error || body.message || raw;
+  } catch {
+    return raw;
+  }
+}
+
 function setVerdict(el, verdict) {
   const v = verdict || "";
   el.textContent = v ? "Conclusion: " + v : "No cached report yet";
@@ -92,8 +104,8 @@ async function validateUsers() {
   btn.textContent = "Validating…";
   try {
     const res = await fetch("/api/users/validate?project=" + encodeURIComponent(name), {method: "POST"});
+    if (!res.ok) throw new Error(await errText(res));
     const body = await res.json();
-    if (!res.ok) throw new Error(body || res.statusText);
     renderUsers(body.users);
     const el = document.getElementById("usersVerdict");
     if (body.error) {
@@ -149,8 +161,8 @@ function startPolling(q) {
 
 async function startRun(path, verdictId, q) {
   const res = await fetch(path + q, {method: "POST"});
+  if (!res.ok) throw new Error(await errText(res));
   const body = await res.json();
-  if (!res.ok) throw new Error(body || res.statusText);
   document.getElementById(verdictId).textContent = body.kind + " " + body.id + " started…";
   document.getElementById(verdictId).className = "verdict";
   startPolling(q);
@@ -187,6 +199,33 @@ async function runDryRun() {
     btn.disabled = false;
   }
 }
+async function runExecute() {
+  const btn = document.getElementById("runExecute");
+  const box = document.getElementById("confirmExecute");
+  const name = window.currentProject;
+  if (!name || !box.checked) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/migrate/execute?project=" + encodeURIComponent(name), {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({confirm: true}),
+    });
+    if (!res.ok) throw new Error(await errText(res));
+    const body = await res.json();
+    const el = document.getElementById("executeVerdict");
+    el.textContent = "execute " + body.id + " started…";
+    el.className = "verdict";
+    startPolling("?project=" + encodeURIComponent(name));
+  } catch (e) {
+    const el = document.getElementById("executeVerdict");
+    el.textContent = "Execute refused: " + e.message;
+    el.className = "verdict fail";
+  } finally {
+    btn.disabled = !document.getElementById("confirmExecute").checked;
+  }
+}
+
 async function runPreflight() {
   const btn = document.getElementById("runPreflight");
   const name = window.currentProject;
@@ -198,8 +237,8 @@ async function runPreflight() {
   btn.textContent = "Running…";
   try {
     const res = await fetch("/api/preflight/run?project=" + encodeURIComponent(name), {method: "POST"});
+    if (!res.ok) throw new Error(await errText(res));
     const body = await res.json();
-    if (!res.ok) throw new Error(body || res.statusText);
     renderChecks(body.checks);
     setVerdict(document.getElementById("verdict"), body.verdict);
     await loadCached("?project=" + encodeURIComponent(name), name);
@@ -217,6 +256,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("validateUsers").addEventListener("click", validateUsers);
   document.getElementById("runExport").addEventListener("click", runExport);
   document.getElementById("runDryRun").addEventListener("click", runDryRun);
+  document.getElementById("runExecute").addEventListener("click", runExecute);
+  document.getElementById("confirmExecute").addEventListener("change", (e) => {
+    document.getElementById("runExecute").disabled = !e.target.checked;
+  });
   const first = document.querySelector(".proj-btn");
   if (first) await select(first.dataset.name);
 });

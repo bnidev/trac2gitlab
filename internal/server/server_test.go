@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -72,6 +73,53 @@ func TestPreflightRunWritesReport(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "reports", "preflight.md")); err != nil {
 		t.Fatalf("expected report file: %v", err)
+	}
+}
+
+func TestExecuteGate(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(dir, "reports"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte("general:\n  log_level: info\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/migrate/execute?project=demo", strings.NewReader(body))
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := post(`{"confirm": false}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("no confirm status %d, want 400", rec.Code)
+	}
+	if rec := post(`{"confirm": true}`); rec.Code != http.StatusConflict {
+		t.Fatalf("no preflight status %d, want 409", rec.Code)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "reports", "preflight.json"), []byte(`{"verdict":"BLOCKED"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if rec := post(`{"confirm": true}`); rec.Code != http.StatusConflict {
+		t.Fatalf("blocked status %d, want 409", rec.Code)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "reports", "preflight.json"), []byte(`{"verdict":"READY"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rec := post(`{"confirm": true}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ready status %d: %s", rec.Code, rec.Body.String())
+	}
+	var job map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &job); err != nil {
+		t.Fatal(err)
+	}
+	if job["status"] != "running" || job["kind"] != "execute" {
+		t.Fatalf("expected running execute job, got %v", job)
 	}
 }
 

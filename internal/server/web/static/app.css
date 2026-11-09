@@ -44,6 +44,9 @@ pre{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);
 .btn{background:var(--dark);color:#fff;border:0;border-radius:10px;
   padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer}
 .btn:disabled{opacity:.5;cursor:wait}
+.btn.danger{background:#B91C1C}
+.confirm{display:flex;gap:10px;align-items:center;font-size:13px;font-weight:600}
+.confirm input{width:20px;height:20px;accent-color:#B91C1C}
 .row{display:flex;gap:12px;align-items:center;margin-bottom:12px}
 .check{display:flex;gap:12px;align-items:center;padding:10px 12px;
   border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
