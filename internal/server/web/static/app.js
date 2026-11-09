@@ -126,8 +126,11 @@ async function loadConnection(q) {
   document.getElementById("fGitlabUrl").value = body.gitlabUrl || "";
   document.getElementById("fGitlabProj").value = body.gitlabProject || "";
   document.getElementById("fTracUser").value = body.tracUser || "";
+  document.getElementById("fHtUser").value = body.htaccessUser || "";
   document.getElementById("fTracPass").value = "";
   document.getElementById("fTracPass").placeholder = body.hasTracPassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+  document.getElementById("fHtPass").value = "";
+  document.getElementById("fHtPass").placeholder = body.hasHtaccessPassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
   document.getElementById("fGitlabToken").value = "";
   document.getElementById("fGitlabToken").placeholder = body.hasGitlabToken ? "stored ✓ — leave blank to keep" : "only sent, never shown";
 }
@@ -165,6 +168,8 @@ async function saveConnection() {
     tracRpcPath: document.getElementById("fTracRpc").value,
     tracUser: document.getElementById("fTracUser").value,
     tracPassword: document.getElementById("fTracPass").value,
+    htaccessUser: document.getElementById("fHtUser").value,
+    htaccessPass: document.getElementById("fHtPass").value,
     gitlabUrl: document.getElementById("fGitlabUrl").value,
     gitlabToken: document.getElementById("fGitlabToken").value,
     gitlabProject: document.getElementById("fGitlabProj").value,
@@ -175,6 +180,7 @@ async function saveConnection() {
     });
     if (!res.ok) throw new Error(await errText(res));
     document.getElementById("fTracPass").value = "";
+    document.getElementById("fHtPass").value = "";
     document.getElementById("fGitlabToken").value = "";
     el.textContent = "Saved migration.yaml + .env locally. Secrets stay server-side.";
     el.className = "verdict ok";

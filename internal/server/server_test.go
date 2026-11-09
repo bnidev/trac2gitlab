@@ -136,13 +136,13 @@ func TestConnectEndpoints(t *testing.T) {
 		if err := json.Unmarshal(rec.Body.Bytes(), &form); err != nil {
 			t.Fatal(err)
 		}
-		for _, k := range []string{"tracPassword", "gitlabToken", "tracUser"} {
+		for _, k := range []string{"tracPassword", "gitlabToken", "htaccessPass"} {
 			if _, ok := form[k]; ok {
 				t.Fatalf("secret field %q leaked in GET response", k)
 			}
 		}
 	}
-	putBody := `{"tracBaseUrl":"https://trac.local","gitlabUrl":"https://gl.local","gitlabProject":"grp/proj","tracUser":"u","tracPassword":"p","gitlabToken":"t"}`
+	putBody := `{"tracBaseUrl":"https://trac.local","gitlabUrl":"https://gl.local","gitlabProject":"grp/proj","tracUser":"u","tracPassword":"p","htaccessUser":"g","htaccessPass":"q","gitlabToken":"t"}`
 	req := httptest.NewRequest("PUT", "/api/project/connection?project=demo", strings.NewReader(putBody))
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, req)
@@ -162,7 +162,7 @@ func TestConnectEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"TRAC_URL=https://trac.local", "TRAC_USER=u", "TRAC_PASSWORD=p", "GITLAB_TOKEN=t", "GITLAB_PROJECT=grp/proj"} {
+	for _, want := range []string{"TRAC_URL=https://trac.local", "TRAC_USER=u", "TRAC_PASSWORD=p", "HTACCESS_USER=g", "HTACCESS_PASSWORD=q", "GITLAB_TOKEN=t", "GITLAB_PROJECT=grp/proj"} {
 		if !strings.Contains(string(envRaw), want) {
 			t.Fatalf("expected .env to contain %q, got:\n%s", want, envRaw)
 		}

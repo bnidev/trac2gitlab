@@ -46,14 +46,23 @@ type General struct {
 	LogLevel string `yaml:"log_level"`
 }
 
-// TracConfig holds the configuration for the Trac instance
+// TracConfig holds the configuration for the Trac instance.
+// Two credential layers exist: an optional HTTP site gate (htaccess,
+// HTACCESS_USER/HTACCESS_PASSWORD) applied at the transport level, and the
+// Trac account itself (TRAC_USER/TRAC_PASSWORD). A single request carries
+// one Basic Auth header, so when both are set the site gate wins on the
+// wire; the Trac account still identifies the API user where the plugin
+// requires one.
 type TracConfig struct {
 	BaseURL string `yaml:"base_url"`
 	URL     string `yaml:"url"`
 	RPCPath string `yaml:"rpc_path"`
-	// Credentials come from TRAC_USER/TRAC_PASSWORD or .env, never from YAML.
+	// Credentials come from the environment or .env, never from YAML.
 	Username string `yaml:"-"`
 	Password string `yaml:"-"`
+	// Optional HTTP site gate (e.g. htaccess) in front of Trac.
+	HtaccessUser string `yaml:"-"`
+	HtaccessPass string `yaml:"-"`
 }
 
 // GitLabConfig holds the configuration for the GitLab instance
@@ -149,6 +158,8 @@ func applyEnv(cfg *Config) {
 	cfg.Trac.BaseURL = strings.TrimRight(cfg.Trac.BaseURL, "/")
 	cfg.Trac.Username = os.Getenv("TRAC_USER")
 	cfg.Trac.Password = os.Getenv("TRAC_PASSWORD")
+	cfg.Trac.HtaccessUser = os.Getenv("HTACCESS_USER")
+	cfg.Trac.HtaccessPass = os.Getenv("HTACCESS_PASSWORD")
 
 	if v := firstEnv("GITLAB_URL", "GITLAB_HOST"); v != "" {
 		cfg.GitLab.BaseURL = v

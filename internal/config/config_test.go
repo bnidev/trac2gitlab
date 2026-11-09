@@ -30,6 +30,8 @@ import_options:
 	t.Setenv("TRAC_URL", "")
 	t.Setenv("TRAC_USER", "trac-user")
 	t.Setenv("TRAC_PASSWORD", "trac-pass")
+	t.Setenv("HTACCESS_USER", "gate-user")
+	t.Setenv("HTACCESS_PASSWORD", "gate-pass")
 
 	cfg, err := LoadProject(dir)
 	if err != nil {
@@ -43,6 +45,9 @@ import_options:
 	}
 	if cfg.Trac.Username != "trac-user" || cfg.Trac.Password != "trac-pass" {
 		t.Errorf("Trac credentials not loaded from env")
+	}
+	if cfg.Trac.HtaccessUser != "gate-user" || cfg.Trac.HtaccessPass != "gate-pass" {
+		t.Errorf("Htaccess credentials not loaded from env")
 	}
 	if cfg.GitLab.BaseURL != "https://gitlab.example.com" {
 		t.Errorf("GitLab.BaseURL = %q", cfg.GitLab.BaseURL)
