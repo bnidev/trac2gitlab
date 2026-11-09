@@ -93,7 +93,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 				continue
 			}
 			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || isChangesetComment(body) {
+			if body == "" || IsChangesetComment(body) {
 				continue
 			}
 			result.Total++
@@ -106,7 +106,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 				continue
 			}
 			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || isChangesetComment(body) {
+			if body == "" || IsChangesetComment(body) {
 				continue
 			}
 
@@ -122,7 +122,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 			}
 
 			body = refs.Rewrite(body)
-			authorID := resolveAuthor(users, resolver, comment.Author)
+			authorID := ResolveAuthor(users, resolver, comment.Author)
 			if authorID == 0 {
 				body += fmt.Sprintf("\n\n---\n_Originally by %s at %s_", comment.Author, comment.Time.Format(time.RFC3339))
 			}
@@ -156,7 +156,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	return result, nil
 }
 
-func resolveAuthor(users *identity.Mapping, resolver *identity.Resolver, author string) int64 {
+func ResolveAuthor(users *identity.Mapping, resolver *identity.Resolver, author string) int64 {
 	user, ok := users.Resolve(author)
 	if !ok {
 		slog.Warn("Unmapped note author", "author", author)
@@ -174,7 +174,7 @@ func resolveAuthor(users *identity.Mapping, resolver *identity.Resolver, author 
 	return id
 }
 
-func isChangesetComment(body string) bool {
+func IsChangesetComment(body string) bool {
 	body = strings.TrimSpace(body)
 	return strings.HasPrefix(body, "In [changeset:") ||
 		strings.Contains(body, "#!CommitTicketReference") ||

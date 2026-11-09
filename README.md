@@ -26,6 +26,7 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 - Import wiki pages and attachments (latest version; original author/date recorded in a footer)
 - Rewrite ticket IDs and changeset references using explicit mapping files
 - Map Trac fields to GitLab labels (`trac:type:defect`, `trac:priority:major`, ...)
+- Validate the target against the export (counts, timestamps, authors, attachments, wiki)
 
 ## Planned Features
 
@@ -124,6 +125,16 @@ labels:
 
 For example `type=defect` becomes `trac:type:defect`. Existing labels are not
 removed; missing labels are added on rerun.
+
+## Validation
+
+```bash
+trac2gitlab validate --project-dir projects/my-project
+```
+
+Writes `projects/<name>/reports/validation.md` and exits non-zero on `FAIL`.
+Checks issue presence, created/closed timestamps, issue and note authors,
+labels, note timestamps, attachment links, and wiki pages.
 
 ## Restoring authors
 

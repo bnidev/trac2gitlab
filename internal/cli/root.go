@@ -48,5 +48,6 @@ func SetupCommands(ctx *app.AppContext) {
 	rootCmd.AddCommand(migrateCmd(ctx))
 	rootCmd.AddCommand(patchCmd(ctx))
 	rootCmd.AddCommand(usersCmd(ctx))
+	rootCmd.AddCommand(validateCmd(ctx))
 	rootCmd.AddCommand(versionCmd)
 }

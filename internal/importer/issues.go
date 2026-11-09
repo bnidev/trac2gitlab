@@ -16,6 +16,7 @@ import (
 	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/internal/utils"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
 
 // Result summarises one import phase.
@@ -91,7 +92,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		flat.Description = refs.Rewrite(flat.Description)
 		authorID := int64(0)
 		if users != nil {
-			authorID = resolveAuthor(users, resolver, flat.Reporter)
+			authorID = ResolveAuthor(users, resolver, flat.Reporter)
 		}
 		flat.Description = withAuthorFooter(flat.Description, flat.Reporter, flat.CreatedAt, authorID)
 
@@ -229,6 +230,8 @@ type IssueRaw struct {
 		Severity    string `json:"severity"`
 		Keywords    string `json:"keywords"`
 	} `json:"Attributes"`
+	Attachments []trac.Attachment     `json:"Attachments"`
+	Comments    []trac.ChangeLogEntry `json:"Comments"`
 }
 
 type IssueFlat struct {

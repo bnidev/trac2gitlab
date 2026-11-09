@@ -52,7 +52,7 @@ func TestCollectWikiPages(t *testing.T) {
 	writeWiki("Page", 2, time.Time{})
 	writeWiki("Sub/Other", 1, time.Time{})
 
-	pages, err := collectWikiPages(dir)
+	pages, err := CollectWikiPages(dir)
 	if err != nil {
 		t.Fatalf("collect: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestCollectWikiPages(t *testing.T) {
 }
 
 func TestCollectWikiPagesMissingDir(t *testing.T) {
-	pages, err := collectWikiPages(filepath.Join(t.TempDir(), "missing"))
+	pages, err := CollectWikiPages(filepath.Join(t.TempDir(), "missing"))
 	if err != nil {
 		t.Fatalf("collect: %v", err)
 	}

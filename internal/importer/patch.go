@@ -39,7 +39,7 @@ func BuildAuthorPatch(cfg *config.Config, client *gitlab.Client) ([]AuthorPatchR
 		return nil, nil, err
 	}
 	for _, record := range noteMap.Notes {
-		authorID := resolveAuthor(users, resolver, record.Author)
+		authorID := ResolveAuthor(users, resolver, record.Author)
 		if authorID == 0 {
 			authorID = record.AuthorID
 		}
@@ -62,7 +62,7 @@ func BuildAuthorPatch(cfg *config.Config, client *gitlab.Client) ([]AuthorPatchR
 		if strings.TrimSpace(ticket.Attributes.Reporter) == "" {
 			continue
 		}
-		authorID := resolveAuthor(users, resolver, ticket.Attributes.Reporter)
+		authorID := ResolveAuthor(users, resolver, ticket.Attributes.Reporter)
 		if authorID == 0 {
 			unresolved = append(unresolved, fmt.Sprintf("issue #%d (%s)", ticket.ID, ticket.Attributes.Reporter))
 			continue
