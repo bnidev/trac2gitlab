@@ -79,3 +79,57 @@ func TestCollectWikiPagesMissingDir(t *testing.T) {
 		t.Fatalf("pages = %+v", pages)
 	}
 }
+
+func TestWikiAttachmentKey(t *testing.T) {
+	a := wikiAttachmentKey("Page", "a.png")
+	if a != wikiAttachmentKey("Page", "a.png") {
+		t.Fatal("wikiAttachmentKey is not deterministic")
+	}
+	if a == wikiAttachmentKey("Other", "a.png") {
+		t.Fatal("wikiAttachmentKey should include the page")
+	}
+}
+
+func TestWikiAttachmentSection(t *testing.T) {
+	attachments := []trac.Attachment{
+		{Filename: "a.png", Author: "jdoe", Time: time.Date(2022, 11, 22, 0, 0, 0, 0, time.UTC)},
+		{Filename: "b.pdf"},
+	}
+	index := map[string]wikiAttachmentRecord{
+		wikiAttachmentKey("Page", "a.png"): {Page: "Page", Filename: "a.png", Markdown: "![a](/uploads/a.png)"},
+		wikiAttachmentKey("Page", "b.pdf"): {Page: "Page", Filename: "b.pdf", URL: "/uploads/b.pdf"},
+	}
+	section := wikiAttachmentSection("Page", attachments, index)
+	for _, want := range []string{"## Attachments", "![a](/uploads/a.png)", "[b.pdf](/uploads/b.pdf)", "uploaded by jdoe on 2022-11-22"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("section missing %q\n%s", want, section)
+		}
+	}
+}
+
+func TestWikiAttachmentMappingRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "trac-wiki-attachments.json")
+	in := &wikiAttachmentMapping{Attachments: []wikiAttachmentRecord{{
+		Page: "Page", Filename: "a.png", URL: "/uploads/a.png", Markdown: "![a](/uploads/a.png)",
+	}}}
+	if err := saveWikiAttachmentMapping(path, in); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	out, err := loadWikiAttachmentMapping(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(out.Attachments) != 1 || out.Attachments[0].Page != "Page" || out.Attachments[0].Markdown == "" {
+		t.Fatalf("round trip = %+v", out.Attachments)
+	}
+}
+
+func TestLoadMissingWikiAttachmentMapping(t *testing.T) {
+	out, err := loadWikiAttachmentMapping(filepath.Join(t.TempDir(), "missing.json"))
+	if err != nil {
+		t.Fatalf("load missing: %v", err)
+	}
+	if len(out.Attachments) != 0 {
+		t.Fatalf("expected empty mapping, got %+v", out.Attachments)
+	}
+}

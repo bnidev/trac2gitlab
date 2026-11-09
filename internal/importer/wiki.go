@@ -42,13 +42,27 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) error {
 		byTitle[strings.ToLower(page.Title)] = page
 	}
 
+	attachmentsPath := filepath.Join(cfg.ExportOptions.ExportDir, "trac-wiki-attachments.json")
+	attachmentMap, err := loadWikiAttachmentMapping(attachmentsPath)
+	if err != nil {
+		return err
+	}
+	attachmentIndex := make(map[string]wikiAttachmentRecord, len(attachmentMap.Attachments))
+	for _, record := range attachmentMap.Attachments {
+		attachmentIndex[wikiAttachmentKey(record.Page, record.Filename)] = record
+	}
+
 	format := gitlab.WikiFormatMarkdown
 	for name, page := range pages {
 		content, err := os.ReadFile(page.ContentPath)
 		if err != nil {
 			return fmt.Errorf("read wiki page %q: %w", name, err)
 		}
-		body := wikiContent(string(content), page.Meta)
+		section, err := uploadWikiAttachments(client, project.ID, cfg, name, page.Meta.Attachments, attachmentMap, attachmentIndex, attachmentsPath)
+		if err != nil {
+			return err
+		}
+		body := wikiContent(string(content)+section, page.Meta)
 
 		if current, ok := byTitle[strings.ToLower(name)]; ok {
 			if current.Content == body {
@@ -134,4 +148,120 @@ func wikiContent(content string, meta trac.WikiPage) string {
 		return content
 	}
 	return strings.TrimRight(content, "\n") + "\n\n---\n_" + strings.Join(footer, " ") + fmt.Sprintf(" (Trac version %d)_\n", meta.Version)
+}
+
+type wikiAttachmentRecord struct {
+	Page     string `json:"page"`
+	Filename string `json:"filename"`
+	URL      string `json:"url"`
+	Markdown string `json:"markdown"`
+}
+
+type wikiAttachmentMapping struct {
+	Attachments []wikiAttachmentRecord `json:"attachments"`
+}
+
+func uploadWikiAttachments(client *gitlab.Client, projectID any, cfg *config.Config, page string, attachments []trac.Attachment, mapping *wikiAttachmentMapping, index map[string]wikiAttachmentRecord, mappingPath string) (string, error) {
+	for _, attachment := range attachments {
+		key := wikiAttachmentKey(page, attachment.Filename)
+		if _, ok := index[key]; ok {
+			continue
+		}
+
+		filename := filepath.Base(attachment.Filename)
+		path := filepath.Join(cfg.ExportOptions.ExportDir, "wiki", "attachments", page, filename)
+		file, err := os.Open(path)
+		if err != nil {
+			return "", fmt.Errorf("open wiki attachment %q for %q: %w", attachment.Filename, page, err)
+		}
+		uploaded, err := client.UploadWikiAttachment(projectID, file, filename, nil)
+		closeErr := file.Close()
+		if err != nil {
+			return "", fmt.Errorf("upload wiki attachment %q for %q: %w", attachment.Filename, page, err)
+		}
+		if closeErr != nil {
+			return "", fmt.Errorf("close wiki attachment %q for %q: %w", attachment.Filename, page, closeErr)
+		}
+
+		record := wikiAttachmentRecord{
+			Page:     page,
+			Filename: attachment.Filename,
+			URL:      uploaded.Link.URL,
+			Markdown: uploaded.Link.Markdown,
+		}
+		mapping.Attachments = append(mapping.Attachments, record)
+		index[key] = record
+		if err := saveWikiAttachmentMapping(mappingPath, mapping); err != nil {
+			return "", err
+		}
+	}
+
+	return wikiAttachmentSection(page, attachments, index), nil
+}
+
+func wikiAttachmentKey(page, filename string) string {
+	return page + "|" + filename
+}
+
+func wikiAttachmentSection(page string, attachments []trac.Attachment, index map[string]wikiAttachmentRecord) string {
+	var lines []string
+	for _, attachment := range attachments {
+		record, ok := index[wikiAttachmentKey(page, attachment.Filename)]
+		if !ok {
+			continue
+		}
+		link := record.Markdown
+		if link == "" {
+			link = fmt.Sprintf("[%s](%s)", record.Filename, record.URL)
+		}
+		line := "- " + link
+		var meta []string
+		if attachment.Author != "" {
+			meta = append(meta, "uploaded by "+attachment.Author)
+		}
+		if !attachment.Time.IsZero() {
+			meta = append(meta, "on "+attachment.Time.Format("2006-01-02"))
+		}
+		if len(meta) > 0 {
+			line += " — _" + strings.Join(meta, " ") + "_"
+		}
+		lines = append(lines, line)
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return "\n\n## Attachments\n\n" + strings.Join(lines, "\n")
+}
+
+func loadWikiAttachmentMapping(path string) (*wikiAttachmentMapping, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return &wikiAttachmentMapping{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read wiki attachment mapping %q: %w", path, err)
+	}
+	var mapping wikiAttachmentMapping
+	if err := json.Unmarshal(data, &mapping); err != nil {
+		return nil, fmt.Errorf("parse wiki attachment mapping %q: %w", path, err)
+	}
+	return &mapping, nil
+}
+
+func saveWikiAttachmentMapping(path string, mapping *wikiAttachmentMapping) error {
+	data, err := json.MarshalIndent(mapping, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode wiki attachment mapping: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create wiki attachment mapping directory: %w", err)
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return fmt.Errorf("write wiki attachment mapping: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("replace wiki attachment mapping: %w", err)
+	}
+	return nil
 }
