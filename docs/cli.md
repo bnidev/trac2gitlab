@@ -47,6 +47,17 @@ Summarises the export: ticket/comment/wiki/attachment counts and every author.
 `--write-users` writes a `users.yaml` skeleton with all authors unresolved; it
 refuses to overwrite an existing file.
 
+## `status`
+
+```bash
+trac2gitlab status --project-dir projects/my-project
+trac2gitlab status --project-dir projects/my-project --json
+```
+
+Reads `state/migration.yaml` and prints the overall status, phase counters, first
+error per phase, and a suggested next step. `--json` is intended for agents/UI.
+Does not require GitLab or Trac credentials.
+
 ## `migrate`
 
 ```bash

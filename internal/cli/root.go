@@ -22,7 +22,7 @@ func Execute(ctx *app.AppContext) {
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		ctx.ProjectDir = projectDir
 		switch cmd.Name() {
-		case "init", "version":
+		case "init", "status", "version":
 			return nil
 		}
 		cfg, err := config.LoadProject(projectDir)
@@ -49,6 +49,7 @@ func SetupCommands(ctx *app.AppContext) {
 	rootCmd.AddCommand(migrateCmd(ctx))
 	rootCmd.AddCommand(patchCmd(ctx))
 	rootCmd.AddCommand(preflightCmd(ctx))
+	rootCmd.AddCommand(statusCmd(ctx))
 	rootCmd.AddCommand(usersCmd(ctx))
 	rootCmd.AddCommand(validateCmd(ctx))
 	rootCmd.AddCommand(versionCmd)

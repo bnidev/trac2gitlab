@@ -45,7 +45,7 @@ func New(dryRun bool) *Migration {
 func Load(path string) (*Migration, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return New(false), nil
+		return &Migration{Status: StatusPending, Phases: make(map[string]*Phase)}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read state %q: %w", path, err)
