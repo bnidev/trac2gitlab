@@ -22,6 +22,9 @@ func usersCmd(ctx *app.AppContext) *cobra.Command {
 		Use:   "validate",
 		Short: "Validate mappings/users.yaml and optionally resolve GitLab user IDs",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !cmd.Flags().Changed("users") && ctx.Config != nil {
+				usersPath = ctx.Config.ImportOptions.UsersFile
+			}
 			mapping, err := identity.LoadFile(usersPath)
 			if err != nil {
 				return err
@@ -29,6 +32,9 @@ func usersCmd(ctx *app.AppContext) *cobra.Command {
 
 			var resolver *identity.Resolver
 			if checkGitLab {
+				if err := ctx.EnsureProjectID(); err != nil {
+					return err
+				}
 				client, err := gitlab.NewGitLabClient(ctx.Config)
 				if err != nil {
 					return err

@@ -17,6 +17,9 @@ func patchCmd(ctx *app.AppContext) *cobra.Command {
 		Use:   "patch",
 		Short: "Emit a Rails-runner script that restores issue and note authors",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ctx.EnsureProjectID(); err != nil {
+				return err
+			}
 			client, err := gitlab.NewGitLabClient(ctx.Config)
 			if err != nil {
 				return err

@@ -46,7 +46,7 @@ If you're using another version, some methods may not be available or may behave
 
 ## Requirements
 
-- Go 1.23 or later
+- Go 1.24 or later
 - Access to a Trac instance with XML-RPC enabled
 - GitLab project with API access token
 
@@ -54,20 +54,37 @@ If you're using another version, some methods may not be available or may behave
 
 1. Clone the repository
 2. Run `make install` to install dependencies
-3. Run `make init` to generate a default config or rename `config.example.yml` to `config.yml`
-4. Configure `config.yml` with your Trac and GitLab settings
-5. Run the commands in your terminal
+3. Create a project directory:
+   ```bash
+   trac2gitlab init --project-dir projects/my-project
+   ```
+4. Edit `projects/my-project/migration.yaml` and create
+   `projects/my-project/.env` (see `.env.example`). Credentials are read from
+   the environment or `.env`, never from `migration.yaml`:
+   ```text
+   GITLAB_URL=https://gitlab.example.com
+   GITLAB_TOKEN=...
+   GITLAB_PROJECT=group/project
+   TRAC_URL=https://trac.example.com
+   TRAC_USER=...
+   TRAC_PASSWORD=...
+   ```
+5. Run commands against the project:
+   ```bash
+   trac2gitlab export  --project-dir projects/my-project
+   trac2gitlab migrate --project-dir projects/my-project
+   ```
 
 **Trac Exporter:**
 
 ```bash
-make export
+trac2gitlab export --project-dir projects/my-project
 ```
 
 **GitLab Importer:**
 
 ```bash
-make migrate
+trac2gitlab migrate --project-dir projects/my-project
 ```
 
 ## Restoring authors

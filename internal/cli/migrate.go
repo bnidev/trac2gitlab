@@ -17,6 +17,11 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			slog.Info("Starting migration to GitLab...")
 
+			if err := ctx.EnsureProjectID(); err != nil {
+				slog.Error("Failed to resolve GitLab project", "errorMsg", err)
+				return
+			}
+
 			cfg := *ctx.Config
 
 			client, err := gitlab.NewGitLabClient(&cfg)
