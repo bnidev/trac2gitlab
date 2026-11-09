@@ -103,6 +103,7 @@ async function createProject() {
   const input = document.getElementById("newProject");
   const name = input.value.trim();
   const el = document.getElementById("connVerdict");
+  el.hidden = false;
   if (!name) return;
   try {
     const res = await fetch("/api/projects", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name})});
@@ -129,9 +130,29 @@ async function loadConnection(q) {
   document.getElementById("fGitlabToken").value = "";
 }
 
+async function testConnection(kind) {
+  const name = window.currentProject;
+  const el = document.getElementById(kind === "trac" ? "tracTest" : "gitlabTest");
+  if (!name) return;
+  el.hidden = false;
+  el.textContent = "Testing… (uses saved connection — save first)";
+  el.className = "verdict";
+  try {
+    const res = await fetch("/api/test/" + kind + "?project=" + encodeURIComponent(name), {method: "POST"});
+    if (!res.ok) throw new Error(await errText(res));
+    const body = await res.json();
+    el.textContent = body.message;
+    el.className = "verdict " + (body.ok ? "ok" : "fail");
+  } catch (e) {
+    el.textContent = "Test failed: " + e.message;
+    el.className = "verdict fail";
+  }
+}
+
 async function saveConnection() {
   const name = window.currentProject;
   const el = document.getElementById("connVerdict");
+  el.hidden = false;
   if (!name) {
     el.textContent = "Select or create a project first.";
     el.className = "verdict";
@@ -434,6 +455,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   showStep("connect");
   document.getElementById("createProject").addEventListener("click", createProject);
   document.getElementById("saveConnection").addEventListener("click", saveConnection);
+  document.getElementById("testTrac").addEventListener("click", () => testConnection("trac"));
+  document.getElementById("testGitlab").addEventListener("click", () => testConnection("gitlab"));
   document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showStep(b.dataset.goto)));
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);

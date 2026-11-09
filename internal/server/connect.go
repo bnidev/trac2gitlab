@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/pkg/gitlab"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,6 +46,63 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"name": name})
 }
 
+// handleTestTrac checks the stored Trac connection: expected XML-RPC
+// methods plus plugin version. A failed connection is a normal answer,
+// so this returns 200 with ok:false instead of an error status.
+func (s *Server) handleTestTrac(w http.ResponseWriter, r *http.Request) {
+	dir := ResolveProject(s.Root, r.URL.Query().Get("project"))
+	cfg, err := config.LoadProject(dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	client, err := trac.NewTracClient(&cfg)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		return
+	}
+	if err := client.ValidateExpectedMethods(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		return
+	}
+	msg := "expected methods ok"
+	if err := client.ValidatePluginVersion(); err != nil {
+		writeJSON(w, map[string]any{"ok": true, "message": msg + "; plugin: " + err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "message": msg + " + plugin version ok"})
+}
+
+// handleTestGitLab checks the stored GitLab connection: client, version,
+// project resolution.
+func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
+	dir := ResolveProject(s.Root, r.URL.Query().Get("project"))
+	cfg, err := config.LoadProject(dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	client, err := gitlab.NewGitLabClient(&cfg)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		return
+	}
+	if err := client.ValidateGitLab(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		return
+	}
+	ref := any(cfg.GitLab.ProjectID)
+	if cfg.GitLab.ProjectID == 0 {
+		ref = cfg.GitLab.Project
+	}
+	project, err := client.GetProject(ref)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "message": "project " + project.PathWithNamespace})
+}
+// Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
 // connectionForm is the editable, non-secret part of a project's connection.
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
 type connectionForm struct {
