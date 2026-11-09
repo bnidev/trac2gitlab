@@ -21,4 +21,5 @@ import_options:
     import_milestones: true
     import_notes: true
     import_attachments: true
+    import_wiki: true
     users_file: mappings/users.yaml

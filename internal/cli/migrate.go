@@ -57,6 +57,13 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 					return
 				}
 			}
+
+			if cfg.ImportOptions.ImportWiki {
+				if err = importer.ImportWiki(client, &cfg); err != nil {
+					slog.Error("Wiki import failed", "errorMsg", err)
+					return
+				}
+			}
 		},
 	}
 }

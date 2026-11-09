@@ -1,0 +1,81 @@
+package importer
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/bnidev/trac2gitlab/pkg/trac"
+)
+
+func TestWikiContent(t *testing.T) {
+	meta := trac.WikiPage{
+		Author:       "jdoe",
+		Version:      3,
+		LastModified: time.Date(2022, 11, 22, 0, 0, 0, 0, time.UTC),
+	}
+	got := wikiContent("hello\n", meta)
+	for _, want := range []string{"hello", "Originally by jdoe", "on 2022-11-22", "Trac version 3"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("wikiContent missing %q\n%s", want, got)
+		}
+	}
+}
+
+func TestWikiContentNoMetadata(t *testing.T) {
+	if got := wikiContent("hello", trac.WikiPage{}); got != "hello" {
+		t.Fatalf("wikiContent = %q, want unchanged", got)
+	}
+}
+
+func TestCollectWikiPages(t *testing.T) {
+	dir := t.TempDir()
+	writeWiki := func(name string, version int64, lastModified time.Time) {
+		meta := trac.WikiPage{Name: name, Version: version, Author: "jdoe", LastModified: lastModified}
+		data, _ := json.Marshal(meta)
+		base := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(base), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(filepath.Dir(base), filepath.Base(base)+".v"+strconv.FormatInt(version, 10)+".json"), data, 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(filepath.Dir(base), filepath.Base(base)+".v"+strconv.FormatInt(version, 10)+".md"), []byte("content"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeWiki("Page", 1, time.Time{})
+	writeWiki("Page", 2, time.Time{})
+	writeWiki("Sub/Other", 1, time.Time{})
+
+	pages, err := collectWikiPages(dir)
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+	if len(pages) != 2 {
+		t.Fatalf("pages = %+v", pages)
+	}
+	if pages["Page"].Meta.Version != 2 {
+		t.Fatalf("Page version = %d, want 2", pages["Page"].Meta.Version)
+	}
+	if !strings.HasSuffix(pages["Page"].ContentPath, ".v2.md") {
+		t.Fatalf("content path = %q", pages["Page"].ContentPath)
+	}
+	if pages["Sub/Other"].Meta.Version != 1 {
+		t.Fatalf("Sub/Other = %+v", pages["Sub/Other"])
+	}
+}
+
+func TestCollectWikiPagesMissingDir(t *testing.T) {
+	pages, err := collectWikiPages(filepath.Join(t.TempDir(), "missing"))
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+	if len(pages) != 0 {
+		t.Fatalf("pages = %+v", pages)
+	}
+}

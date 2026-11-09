@@ -54,6 +54,7 @@ type ImportOptions struct {
 	ImportMilestones  bool   `yaml:"import_milestones"`
 	ImportNotes       bool   `yaml:"import_notes"`
 	ImportAttachments bool   `yaml:"import_attachments"`
+	ImportWiki        bool   `yaml:"import_wiki"`
 	UsersFile         string `yaml:"users_file"`
 	CreateUsers       bool   `yaml:"create_users"`
 }
@@ -138,6 +139,7 @@ func CreateDefaultConfig() error {
 			ImportMilestones:  true,
 			ImportNotes:       true,
 			ImportAttachments: true,
+			ImportWiki:        true,
 			UsersFile:         "mappings/users.yaml",
 			CreateUsers:       false,
 		},
