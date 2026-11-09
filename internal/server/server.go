@@ -46,6 +46,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/projects", s.handleProjects)
 	s.mux.HandleFunc("GET /api/status", s.handleStatus)
 	s.mux.HandleFunc("GET /api/preflight", s.handleReport("reports/preflight.md"))
+	s.mux.HandleFunc("POST /api/preflight/run", s.handlePreflightRun)
 	s.mux.HandleFunc("GET /api/validation", s.handleReport("reports/validation.md"))
 
 	static, err := fs.Sub(webFS, "web/static")
@@ -105,12 +106,24 @@ func (s *Server) handleReport(rel string) func(w http.ResponseWriter, r *http.Re
 			"exists":  true,
 			"path":    rel,
 			"verdict": parseVerdict(string(raw)),
+			"checks":  cachedChecks(dir),
 			"raw":     string(raw),
 		})
 	}
 }
 
-// parseVerdict extracts the trailing "STATUS: ..." line from cached reports.
+// cachedChecks returns the structured checklist from the last live run, if any.
+func cachedChecks(dir string) []Check {
+	raw, err := os.ReadFile(filepath.Join(dir, "reports", "preflight.json"))
+	if err != nil {
+		return nil
+	}
+	var result PreflightResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil
+	}
+	return result.Checks
+}
 func parseVerdict(raw string) string {
 	for _, line := range strings.Split(raw, "\n") {
 		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "STATUS:"); ok {

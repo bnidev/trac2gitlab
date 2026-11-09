@@ -26,6 +26,9 @@ body{margin:0;background:var(--bg);color:var(--ink);
   border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-size:12px}
 .proj-btn.sel{border-color:var(--primary);background:#EFF6FF}
 .hint{font-size:12px;color:var(--muted);margin-top:16px}
+.empty{font-size:12px;color:var(--muted);border:1px dashed var(--line);
+  border-radius:10px;padding:12px}
+.empty code{background:#F1F5F9;padding:2px 6px;border-radius:6px;font-size:11px}
 .center{flex:1;padding:26px;max-width:1000px}
 h1{font-size:30px;margin:0 0 6px}
 .sub{color:var(--muted);margin:0 0 18px}
@@ -37,3 +40,20 @@ pre{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);
   font-weight:700;font-size:13px;margin-bottom:10px}
 .verdict.ok{background:var(--ok-bg);color:var(--ok)}
 .verdict.warn{background:var(--warn-bg);color:var(--warn)}
+.verdict.fail{background:#FEF2F2;color:#B91C1C}
+.btn{background:var(--dark);color:#fff;border:0;border-radius:10px;
+  padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.check{display:flex;gap:12px;align-items:center;padding:10px 12px;
+  border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
+.badge{width:28px;height:28px;border-radius:9999px;display:flex;
+  align-items:center;justify-content:center;font-weight:700}
+.badge.pass{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.fail{background:#FEF2F2;color:#B91C1C}
+.check .n{font-weight:600;font-size:14px}
+.check .d{color:var(--muted);font-size:12px}
+.check .pill{margin-left:auto;font-size:11px;font-weight:700}
+details{margin-top:10px}
+summary{cursor:pointer;font-size:12px}
