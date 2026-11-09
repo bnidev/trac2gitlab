@@ -2,13 +2,16 @@ package importer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/identity"
 	"github.com/bnidev/trac2gitlab/internal/labels"
 	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/internal/utils"
@@ -47,11 +50,20 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		Fields:        config.Labels.Fields,
 		CreateMissing: config.Labels.CreateMissing,
 	}
+	users, err := identity.LoadFile(config.ImportOptions.UsersFile)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return result, err
+		}
+		slog.Warn("Identity mapping missing; unresolved reporters get a footer", "path", config.ImportOptions.UsersFile)
+		users = nil
+	}
 
 	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
 		return result, err
 	}
+	resolver := identity.NewResolver(client, project.ID)
 
 	slog.Info("Starting issue import...", "project", project.Name, "projectID", project.ID)
 
@@ -77,6 +89,11 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		}
 		flat.Title = refs.Rewrite(flat.Title)
 		flat.Description = refs.Rewrite(flat.Description)
+		authorID := int64(0)
+		if users != nil {
+			authorID = resolveAuthor(users, resolver, flat.Reporter)
+		}
+		flat.Description = withAuthorFooter(flat.Description, flat.Reporter, flat.CreatedAt, authorID)
 
 		existingIssue, err := client.GetIssue(project.ID, flat.ID)
 		if err != nil {
@@ -295,4 +312,15 @@ func missingLabels(existing, desired []string) []string {
 		}
 	}
 	return missing
+}
+
+func withAuthorFooter(description, author string, at *time.Time, authorID int64) string {
+	if authorID != 0 || strings.TrimSpace(author) == "" || at == nil {
+		return description
+	}
+	footer := fmt.Sprintf("\n\n---\n_Originally by %s at %s_", author, at.UTC().Format(time.RFC3339))
+	if strings.Contains(description, footer) {
+		return description
+	}
+	return strings.TrimRight(description, "\n") + footer
 }
