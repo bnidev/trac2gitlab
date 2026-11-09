@@ -74,9 +74,12 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) error {
 				return fmt.Errorf("open attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
 			}
 			uploaded, err := client.UploadProjectMarkdown(project.ID, file, filename)
-			file.Close()
+			closeErr := file.Close()
 			if err != nil {
 				return fmt.Errorf("upload attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
+			}
+			if closeErr != nil {
+				return fmt.Errorf("close attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, closeErr)
 			}
 
 			record := attachmentRecord{

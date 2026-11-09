@@ -10,10 +10,11 @@ import (
 )
 
 func TestAttachmentKey(t *testing.T) {
-	if attachmentKey(1, "a.png") != attachmentKey(1, "a.png") {
+	a := attachmentKey(1, "a.png")
+	if a != attachmentKey(1, "a.png") {
 		t.Fatal("attachmentKey is not deterministic")
 	}
-	if attachmentKey(1, "a.png") == attachmentKey(2, "a.png") {
+	if a == attachmentKey(2, "a.png") {
 		t.Fatal("attachmentKey should include the ticket")
 	}
 }
