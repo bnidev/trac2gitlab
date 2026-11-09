@@ -14,6 +14,19 @@ trac2gitlab init --project-dir projects/my-project
 
 Creates `migration.yaml` with defaults. Does not overwrite an existing config.
 
+## `preflight`
+
+```bash
+trac2gitlab preflight --project-dir projects/my-project
+```
+
+Read-only readiness check. Writes `reports/preflight.md` with
+`STATUS: READY | READY WITH WARNINGS | NOT READY | BLOCKED`.
+
+Checks Trac XML-RPC, GitLab project/role, historical-timestamp capability,
+target issue count, and unresolved identities. Exits non-zero on `BLOCKED` or
+`NOT READY`.
+
 ## `export`
 
 ```bash

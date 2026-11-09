@@ -31,6 +31,7 @@ configuration, CLI reference, migration flow, and limitations.
 - Rewrite ticket IDs and changeset references using explicit mapping files
 - Map Trac fields to GitLab labels (`trac:type:defect`, `trac:priority:major`, ...)
 - Validate the target against the export (counts, timestamps, authors, attachments, wiki)
+- Run a read-only preflight (Trac/GitLab reachability, role, target state, identities)
 
 ## Planned Features
 
