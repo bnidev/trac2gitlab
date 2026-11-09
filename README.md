@@ -69,4 +69,24 @@ make export
 make migrate
 ```
 
+## Restoring authors
+
+The importer creates issues/notes with the admin token, because GitLab only lets
+admins/owners set historical timestamps and IIDs. To restore the original
+authors, emit the patch block and run it on the GitLab host:
+
+```bash
+# dry run: prints what would change
+trac2gitlab patch
+
+# after reviewing the dry run, emit an applying block
+trac2gitlab patch --apply
+```
+
+Paste the emitted block into the GitLab host shell. It writes a temporary Ruby
+file inside the container, runs `gitlab-rails runner`, and deletes the file.
+Use `--container <name>` if the container is not called `gitlab`, or
+`--omnibus` for a host install. The block updates `issues.author_id` and
+`notes.author_id` only; unmapped authors are reported and skipped.
+
 Check the `Makefile` for more commands and options.
