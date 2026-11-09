@@ -83,17 +83,20 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			file, err := os.Open(path)
 			if err != nil {
 				result.fail(err)
-				return result, fmt.Errorf("open attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
+				slog.Error("Skipping attachment", "ticket", ticket.ID, "filename", attachment.Filename, "errorMsg", err)
+				continue
 			}
 			uploaded, err := client.UploadProjectMarkdown(project.ID, file, filename)
 			closeErr := file.Close()
 			if err != nil {
 				result.fail(err)
-				return result, fmt.Errorf("upload attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
+				slog.Error("Failed to upload attachment", "ticket", ticket.ID, "filename", attachment.Filename, "errorMsg", err)
+				continue
 			}
 			if closeErr != nil {
 				result.fail(closeErr)
-				return result, fmt.Errorf("close attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, closeErr)
+				slog.Error("Failed to close attachment", "ticket", ticket.ID, "filename", attachment.Filename, "errorMsg", closeErr)
+				continue
 			}
 
 			record := attachmentRecord{
@@ -123,7 +126,8 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 		issue, err := client.GetIssue(project.ID, ticket.ID)
 		if err != nil {
 			result.fail(err)
-			return result, fmt.Errorf("get issue %d: %w", ticket.ID, err)
+			slog.Error("Skipping attachment links", "ticket", ticket.ID, "errorMsg", err)
+			continue
 		}
 		if strings.Contains(issue.Description, section) {
 			continue
@@ -132,7 +136,8 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 		changedAt, err := time.Parse(time.RFC3339, ticket.TimeChanged)
 		if err != nil {
 			result.fail(err)
-			return result, fmt.Errorf("parse TimeChanged for ticket %d: %w", ticket.ID, err)
+			slog.Error("Skipping attachment links", "ticket", ticket.ID, "errorMsg", err)
+			continue
 		}
 		description := issue.Description + section
 		if _, err := client.UpdateIssue(project.ID, ticket.ID, &gitlab.UpdateIssueOptions{
@@ -140,7 +145,8 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			UpdatedAt:   &changedAt,
 		}); err != nil {
 			result.fail(err)
-			return result, fmt.Errorf("link attachments on issue %d: %w", ticket.ID, err)
+			slog.Error("Failed to link attachments", "ticket", ticket.ID, "errorMsg", err)
+			continue
 		}
 	}
 

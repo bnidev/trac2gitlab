@@ -79,7 +79,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		flat, err := ConvertToFlatIssue(issueData, client, project.ID, labelOpts)
 		if err != nil {
 			result.fail(err)
-			return result, fmt.Errorf("failed to process issue: %w", err)
+			slog.Error("Skipping issue", "errorMsg", err)
+			continue
 		}
 		flat.Title = refs.Rewrite(flat.Title)
 		flat.Description = refs.Rewrite(flat.Description)
@@ -102,7 +103,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 			// Author attribution is fixed by the patch pass.
 			if err := ensureLabels(client, project.ID, flat.Labels, config); err != nil {
 				result.fail(err)
-				return result, err
+				slog.Error("Skipping issue", "ID", flat.ID, "errorMsg", err)
+				continue
 			}
 			labelOptions := gitlab.LabelOptions(flat.Labels)
 			created, err := client.CreateIssue(project.ID, &gitlab.CreateIssueOptions{
@@ -115,12 +117,14 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 			})
 			if err != nil {
 				result.fail(err)
-				return result, fmt.Errorf("failed to create issue %d: %w", flat.ID, err)
+				slog.Error("Failed to create issue", "ID", flat.ID, "errorMsg", err)
+				continue
 			}
 			if created.IID != flat.ID {
 				err := fmt.Errorf("issue %d was created with IID %d: admin/owner rights are required to preserve IIDs", flat.ID, created.IID)
 				result.fail(err)
-				return result, err
+				slog.Error("IID mismatch", "ID", flat.ID, "got", created.IID)
+				continue
 			}
 
 			// Update the issue status, because it cant be set on create.
@@ -134,7 +138,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 				})
 				if err != nil {
 					result.fail(err)
-					return result, fmt.Errorf("failed to close issue %d: %w", flat.ID, err)
+					slog.Error("Failed to close issue", "ID", flat.ID, "errorMsg", err)
+					continue
 				}
 			}
 
@@ -175,7 +180,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		if missing := missingLabels(existingIssue.Labels, flat.Labels); len(missing) > 0 {
 			if err := ensureLabels(client, project.ID, missing, config); err != nil {
 				result.fail(err)
-				return result, err
+				slog.Error("Skipping issue", "ID", flat.ID, "errorMsg", err)
+				continue
 			}
 			labelOptions := gitlab.LabelOptions(missing)
 			updateOpts.AddLabels = &labelOptions
@@ -192,7 +198,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 			updateOpts.UpdatedAt = flat.UpdatedAt
 			if _, err := client.UpdateIssue(config.GitLab.ProjectID, flat.ID, updateOpts); err != nil {
 				result.fail(err)
-				return result, fmt.Errorf("failed to update issue %d: %w", flat.ID, err)
+				slog.Error("Failed to update issue", "ID", flat.ID, "errorMsg", err)
+				continue
 			}
 		} else {
 			slog.Debug("No updates needed for existing issue", "ID", flat.ID, "Title", flat.Title)
