@@ -12,7 +12,7 @@ User documentation is in `../docs/`. Agent development rules are in
 | Skill | Status | Purpose |
 |---|---|---|
 | `migration-init` | available | Create the project, write `migration.yaml`, propose identities |
-| `migration-preflight` | planned | Gate on access, timestamp capability, identities, target state |
+| `migration-preflight` | available | Gate on access, timestamp capability, identities, target state |
 | `trac-to-gitlab` | planned | Export → dry-run → execute |
 | `migration-patch` | planned | Author patch handoff and recheck |
 | `migration-validate` | planned | Run validation and report |
