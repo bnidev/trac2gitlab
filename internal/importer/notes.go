@@ -36,10 +36,12 @@ type noteMapping struct {
 	Notes []noteRecord `json:"notes"`
 }
 
-func ImportNotes(client *gitlab.Client, cfg *config.Config) error {
+func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
+	var result Result
+
 	project, err := client.GetProject(cfg.GitLab.ProjectID)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	usersFile := cfg.ImportOptions.UsersFile
@@ -48,14 +50,14 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) error {
 	}
 	users, err := identity.LoadFile(usersFile)
 	if err != nil {
-		return fmt.Errorf("load identity mapping: %w", err)
+		return result, fmt.Errorf("load identity mapping: %w", err)
 	}
 	resolver := identity.NewResolver(client, project.ID)
 
 	notesPath := filepath.Join(cfg.ExportOptions.ExportDir, "trac-notes.json")
 	noteMap, err := loadNoteMapping(notesPath)
 	if err != nil {
-		return err
+		return result, err
 	}
 	existing := make(map[string]bool, len(noteMap.Notes))
 	for _, record := range noteMap.Notes {
@@ -64,30 +66,46 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) error {
 
 	tickets, err := utils.ReadFilesFromDir(filepath.Join(cfg.ExportOptions.ExportDir, "tickets"), ".json", os.Stderr)
 	if err != nil {
-		return fmt.Errorf("read tickets: %w", err)
+		return result, fmt.Errorf("read tickets: %w", err)
 	}
 
+	parsed := make([]ticketWithComments, 0, len(tickets))
 	for _, data := range tickets {
 		var ticket ticketWithComments
 		if err := json.Unmarshal(data, &ticket); err != nil {
-			return fmt.Errorf("parse ticket: %w", err)
+			return result, fmt.Errorf("parse ticket: %w", err)
 		}
-
-		for i, comment := range ticket.Comments {
-			if comment.OldValue == nil {
+		parsed = append(parsed, ticket)
+		for _, comment := range ticket.Comments {
+			if comment.OldValue == nil || comment.Time.IsZero() {
 				continue
 			}
 			body := strings.TrimSpace(*comment.OldValue)
 			if body == "" || isChangesetComment(body) {
 				continue
 			}
-			if comment.Time.IsZero() {
-				slog.Warn("Skipping comment with no timestamp", "ticket", ticket.ID, "index", i)
+			result.Total++
+		}
+	}
+
+	for _, ticket := range parsed {
+		for i, comment := range ticket.Comments {
+			if comment.OldValue == nil || comment.Time.IsZero() {
+				continue
+			}
+			body := strings.TrimSpace(*comment.OldValue)
+			if body == "" || isChangesetComment(body) {
 				continue
 			}
 
 			key := noteKey(ticket.ID, comment.Time, comment.Author, body)
 			if existing[key] {
+				result.Completed++
+				continue
+			}
+			if cfg.DryRun {
+				slog.Info("dry-run: would create note", "ticket", ticket.ID, "index", i)
+				result.Completed++
 				continue
 			}
 
@@ -101,7 +119,8 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) error {
 				CreatedAt: &comment.Time,
 			})
 			if err != nil {
-				return fmt.Errorf("create note for ticket %d comment %d: %w", ticket.ID, i, err)
+				result.fail(err)
+				return result, fmt.Errorf("create note for ticket %d comment %d: %w", ticket.ID, i, err)
 			}
 
 			noteMap.Notes = append(noteMap.Notes, noteRecord{
@@ -114,12 +133,14 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) error {
 			})
 			existing[key] = true
 			if err := saveNoteMapping(notesPath, noteMap); err != nil {
-				return err
+				result.fail(err)
+				return result, err
 			}
+			result.Completed++
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 func resolveAuthor(users *identity.Mapping, resolver *identity.Resolver, author string) int64 {

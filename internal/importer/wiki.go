@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,24 +19,28 @@ type wikiPageFile struct {
 	ContentPath string
 }
 
-func ImportWiki(client *gitlab.Client, cfg *config.Config) error {
+func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
+	var result Result
+
 	project, err := client.GetProject(cfg.GitLab.ProjectID)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	wikiDir := filepath.Join(cfg.ExportOptions.ExportDir, "wiki")
 	pages, err := collectWikiPages(wikiDir)
 	if err != nil {
-		return err
+		return result, err
 	}
+	result.Total = len(pages)
 	if len(pages) == 0 {
-		return nil
+		return result, nil
 	}
 
 	existing, err := client.ListWikis(project.ID, true)
 	if err != nil {
-		return fmt.Errorf("list existing wiki pages: %w", err)
+		result.fail(err)
+		return result, fmt.Errorf("list existing wiki pages: %w", err)
 	}
 	byTitle := make(map[string]*gitlab.Wiki, len(existing))
 	for _, page := range existing {
@@ -45,7 +50,7 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) error {
 	attachmentsPath := filepath.Join(cfg.ExportOptions.ExportDir, "trac-wiki-attachments.json")
 	attachmentMap, err := loadWikiAttachmentMapping(attachmentsPath)
 	if err != nil {
-		return err
+		return result, err
 	}
 	attachmentIndex := make(map[string]wikiAttachmentRecord, len(attachmentMap.Attachments))
 	for _, record := range attachmentMap.Attachments {
@@ -56,16 +61,25 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) error {
 	for name, page := range pages {
 		content, err := os.ReadFile(page.ContentPath)
 		if err != nil {
-			return fmt.Errorf("read wiki page %q: %w", name, err)
+			result.fail(err)
+			return result, fmt.Errorf("read wiki page %q: %w", name, err)
 		}
+		if cfg.DryRun {
+			slog.Info("dry-run: would import wiki page", "page", name)
+			result.Completed++
+			continue
+		}
+
 		section, err := uploadWikiAttachments(client, project.ID, cfg, name, page.Meta.Attachments, attachmentMap, attachmentIndex, attachmentsPath)
 		if err != nil {
-			return err
+			result.fail(err)
+			return result, err
 		}
 		body := wikiContent(string(content)+section, page.Meta)
 
 		if current, ok := byTitle[strings.ToLower(name)]; ok {
 			if current.Content == body {
+				result.Completed++
 				continue
 			}
 			title := name
@@ -74,8 +88,10 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) error {
 				Content: &body,
 				Format:  &format,
 			}); err != nil {
-				return fmt.Errorf("update wiki page %q: %w", name, err)
+				result.fail(err)
+				return result, fmt.Errorf("update wiki page %q: %w", name, err)
 			}
+			result.Completed++
 			continue
 		}
 
@@ -85,11 +101,13 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) error {
 			Content: &body,
 			Format:  &format,
 		}); err != nil {
-			return fmt.Errorf("create wiki page %q: %w", name, err)
+			result.fail(err)
+			return result, fmt.Errorf("create wiki page %q: %w", name, err)
 		}
+		result.Completed++
 	}
 
-	return nil
+	return result, nil
 }
 
 func collectWikiPages(wikiDir string) (map[string]wikiPageFile, error) {

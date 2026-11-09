@@ -18,6 +18,9 @@ type Config struct {
 	GitLab        GitLabConfig  `yaml:"gitlab"`
 	ExportOptions ExportOptions `yaml:"export_options"`
 	ImportOptions ImportOptions `yaml:"import_options"`
+
+	ProjectDir string `yaml:"-"`
+	DryRun     bool   `yaml:"-"`
 }
 
 // General holds general configuration options
@@ -148,6 +151,7 @@ func applyEnv(cfg *Config) {
 }
 
 func normalize(cfg *Config, projectDir string) {
+	cfg.ProjectDir = projectDir
 	if cfg.Trac.RPCPath == "" {
 		cfg.Trac.RPCPath = "/xmlrpc"
 	}

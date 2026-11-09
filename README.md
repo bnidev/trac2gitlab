@@ -72,7 +72,8 @@ If you're using another version, some methods may not be available or may behave
 5. Run commands against the project:
    ```bash
    trac2gitlab export  --project-dir projects/my-project
-   trac2gitlab migrate --project-dir projects/my-project
+   trac2gitlab migrate --project-dir projects/my-project            # dry-run
+   trac2gitlab migrate --project-dir projects/my-project --execute  # write
    ```
 
 **Trac Exporter:**
@@ -84,8 +85,11 @@ trac2gitlab export --project-dir projects/my-project
 **GitLab Importer:**
 
 ```bash
-trac2gitlab migrate --project-dir projects/my-project
+trac2gitlab migrate --project-dir projects/my-project --execute
 ```
+
+`migrate` defaults to `--dry-run`; per-phase progress is written to
+`projects/<name>/state/migration.yaml`.
 
 ## Restoring authors
 
