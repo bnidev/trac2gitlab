@@ -76,6 +76,27 @@ func TestPreflightRunWritesReport(t *testing.T) {
 	}
 }
 
+func TestPatchAndValidateRejectMissingConfig(t *testing.T) {
+	srv, err := New(t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/patch", "/api/patch?apply=true"} {
+		req := httptest.NewRequest("GET", path+"?project=nope", nil)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("patch %s status %d, want 400", path, rec.Code)
+		}
+	}
+	req := httptest.NewRequest("POST", "/api/validate/run?project=nope", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("validate run status %d, want 400", rec.Code)
+	}
+}
+
 func TestExecuteGate(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "demo")
