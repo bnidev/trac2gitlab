@@ -11,8 +11,6 @@ on:
     paths-ignore:
       - "docs/**"
       - "*.md"
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -50,6 +48,9 @@ jobs:
 
       - name: Build binary
         run: make build
+
+      - name: Check wizard web assets
+        run: node --check internal/server/web/static/app.js
 
   test:
     name: Run Tests
