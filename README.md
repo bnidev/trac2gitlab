@@ -21,12 +21,12 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 
 - Import milestones into GitLab projects (updates if already exist and content differs)
 - Import issues into GitLab projects (updates if already exist and content differs)
+- Import ticket comments with original timestamps; note authors are recorded for the author patch pass
 
 ## Planned Features
 
 ### Importer
 
-- Add Trac ticket comments to GitLab issues (preserve original authors and timestamps)
 - Preserve ticket history in GitLab issues (not supported by the GitLab API)
 - Map Trac fields to GitLab labels
 - Import wiki pages into GitLab projects
