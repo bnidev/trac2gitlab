@@ -63,12 +63,14 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 				return fmt.Errorf("issue %d was created with IID %d: admin/owner rights are required to preserve IIDs", flat.ID, created.IID)
 			}
 
-			// Update the issue status, because it cant be set on create
+			// Update the issue status, because it cant be set on create.
+			// UpdatedAt backdates closed_at (and the close system note/state event).
 			if flat.Status == "closed" {
 				slog.Debug("Setting issue status to closed", "ID", flat.ID, "Title", flat.Title)
 				stateEvent := "close"
 				_, err = client.UpdateIssue(project.ID, flat.ID, &gitlab.UpdateIssueOptions{
 					StateEvent: &stateEvent,
+					UpdatedAt:  flat.UpdatedAt,
 				})
 				if err != nil {
 					return fmt.Errorf("failed to close issue %d: %w", flat.ID, err)
