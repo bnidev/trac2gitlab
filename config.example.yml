@@ -21,3 +21,8 @@ import_options:
     import_attachments: true
     import_wiki: true
     users_file: mappings/users.yaml
+
+references:
+    enabled: true
+    tickets_file: mappings/trac-tickets.json
+    changesets_file: mappings/hg-changesets.json
