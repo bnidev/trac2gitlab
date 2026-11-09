@@ -25,6 +25,7 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 - Upload ticket attachments and link them from issue descriptions
 - Import wiki pages and attachments (latest version; original author/date recorded in a footer)
 - Rewrite ticket IDs and changeset references using explicit mapping files
+- Map Trac fields to GitLab labels (`trac:type:defect`, `trac:priority:major`, ...)
 
 ## Planned Features
 
@@ -108,6 +109,21 @@ references:
 
 Missing files are allowed: ticket references stay unchanged, and changeset
 references are left as-is. Fenced code blocks are not rewritten.
+
+## Labels
+
+Trac fields become GitLab labels:
+
+```yaml
+labels:
+  enabled: true
+  prefix: trac
+  create_missing: true
+  fields: [type, priority, resolution, component, version, severity, status]
+```
+
+For example `type=defect` becomes `trac:type:defect`. Existing labels are not
+removed; missing labels are added on rerun.
 
 ## Restoring authors
 

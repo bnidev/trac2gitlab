@@ -46,6 +46,12 @@ var Colors = struct {
 // Label represents a GitLab label, here it is aliased to the GitLab client type for easier usage.
 type Label = gitlab.Label
 
+// CreateLabelOptions defines the options for creating a label.
+type CreateLabelOptions = gitlab.CreateLabelOptions
+
+// LabelOptions is a list of label names.
+type LabelOptions = gitlab.LabelOptions
+
 // Client represents a GitLab API client.
 func (c *Client) GetProjectLabels(projectID any) ([]*Label, error) {
 	labels, _, err := c.git.Labels.ListLabels(projectID, &gitlab.ListLabelsOptions{})

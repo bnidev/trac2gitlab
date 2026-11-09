@@ -19,9 +19,18 @@ type Config struct {
 	ExportOptions ExportOptions    `yaml:"export_options"`
 	ImportOptions ImportOptions    `yaml:"import_options"`
 	References    ReferenceOptions `yaml:"references"`
+	Labels        LabelOptions     `yaml:"labels"`
 
 	ProjectDir string `yaml:"-"`
 	DryRun     bool   `yaml:"-"`
+}
+
+// LabelOptions controls Trac field to GitLab label mapping.
+type LabelOptions struct {
+	Enabled       bool     `yaml:"enabled"`
+	Prefix        string   `yaml:"prefix"`
+	Fields        []string `yaml:"fields"`
+	CreateMissing bool     `yaml:"create_missing"`
 }
 
 // ReferenceOptions controls Trac reference rewriting.
@@ -192,6 +201,15 @@ func normalize(cfg *Config, projectDir string) {
 	if !filepath.IsAbs(cfg.References.ChangesetsFile) {
 		cfg.References.ChangesetsFile = filepath.Join(projectDir, cfg.References.ChangesetsFile)
 	}
+	if cfg.Labels.Prefix == "" {
+		cfg.Labels.Prefix = "trac"
+	}
+	if len(cfg.Labels.Fields) == 0 {
+		cfg.Labels.Fields = []string{"type", "priority", "resolution", "component", "version", "severity", "status"}
+	}
+	for i, field := range cfg.Labels.Fields {
+		cfg.Labels.Fields[i] = strings.ToLower(strings.TrimSpace(field))
+	}
 }
 
 func warnIncomplete(cfg *Config) {
@@ -283,6 +301,12 @@ func DefaultConfig() Config {
 			Enabled:        true,
 			TicketsFile:    "mappings/trac-tickets.json",
 			ChangesetsFile: "mappings/hg-changesets.json",
+		},
+		Labels: LabelOptions{
+			Enabled:       true,
+			Prefix:        "trac",
+			Fields:        []string{"type", "priority", "resolution", "component", "version", "severity", "status"},
+			CreateMissing: true,
 		},
 	}
 }
