@@ -72,6 +72,20 @@ blocks on a role below Owner/Administrator or an unreachable source.
 This writes tickets, comments, wiki pages, and attachments under
 `projects/my-project/data/`.
 
+## Propose identities
+
+```bash
+./trac2gitlab discover --project-dir projects/my-project \
+  --write-users mappings/users.yaml
+```
+
+Review the authors and map each to a GitLab username. Keep unknowns as
+`action: unresolved`. Validate with:
+
+```bash
+./trac2gitlab users validate --project-dir projects/my-project --check-gitlab
+```
+
 ## Review the import plan
 
 ```bash
