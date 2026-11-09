@@ -26,3 +26,9 @@ references:
     enabled: true
     tickets_file: mappings/trac-tickets.json
     changesets_file: mappings/hg-changesets.json
+
+labels:
+    enabled: true
+    prefix: trac
+    create_missing: true
+    fields: [type, priority, resolution, component, version, severity, status]

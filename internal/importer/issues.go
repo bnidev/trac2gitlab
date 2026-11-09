@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/labels"
 	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/internal/utils"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
@@ -40,6 +41,12 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 	if err != nil {
 		return result, err
 	}
+	labelOpts := labels.Options{
+		Enabled:       config.Labels.Enabled,
+		Prefix:        config.Labels.Prefix,
+		Fields:        config.Labels.Fields,
+		CreateMissing: config.Labels.CreateMissing,
+	}
 
 	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
@@ -63,7 +70,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 	result.Total = len(issues)
 
 	for _, issueData := range issues {
-		flat, err := ConvertToFlatIssue(issueData, client, project.ID)
+		flat, err := ConvertToFlatIssue(issueData, client, project.ID, labelOpts)
 		if err != nil {
 			result.fail(err)
 			return result, fmt.Errorf("failed to process issue: %w", err)
@@ -82,12 +89,18 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 
 			// Create as the admin client: only admin/owner can set IID and CreatedAt.
 			// Author attribution is fixed by the patch pass.
+			if err := ensureLabels(client, project.ID, flat.Labels, config); err != nil {
+				result.fail(err)
+				return result, err
+			}
+			labelOptions := gitlab.LabelOptions(flat.Labels)
 			created, err := client.CreateIssue(project.ID, &gitlab.CreateIssueOptions{
 				IID:         &flat.ID,
 				Title:       &flat.Title,
 				Description: &flat.Description,
 				CreatedAt:   flat.CreatedAt,
 				MilestoneID: &flat.MileStoneID,
+				Labels:      &labelOptions,
 			})
 			if err != nil {
 				result.fail(err)
@@ -148,6 +161,15 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 				needsUpdate = true
 			}
 		}
+		if missing := missingLabels(existingIssue.Labels, flat.Labels); len(missing) > 0 {
+			if err := ensureLabels(client, project.ID, missing, config); err != nil {
+				result.fail(err)
+				return result, err
+			}
+			labelOptions := gitlab.LabelOptions(missing)
+			updateOpts.AddLabels = &labelOptions
+			needsUpdate = true
+		}
 
 		if needsUpdate && config.DryRun {
 			slog.Info("dry-run: would update issue", "ID", flat.ID, "Title", flat.Title)
@@ -182,6 +204,13 @@ type IssueRaw struct {
 		Description string `json:"description"`
 		Status      string `json:"status"`
 		Milestone   string `json:"milestone"`
+		Type        string `json:"type"`
+		Priority    string `json:"priority"`
+		Resolution  string `json:"resolution"`
+		Component   string `json:"component"`
+		Version     string `json:"version"`
+		Severity    string `json:"severity"`
+		Keywords    string `json:"keywords"`
 	} `json:"Attributes"`
 }
 
@@ -195,9 +224,10 @@ type IssueFlat struct {
 	Owner       string
 	Status      string
 	MileStoneID int64
+	Labels      []string
 }
 
-func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*IssueFlat, error) {
+func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any, labelOpts labels.Options) (*IssueFlat, error) {
 	var raw IssueRaw
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("unmarshal raw issue: %w", err)
@@ -232,7 +262,37 @@ func ConvertToFlatIssue(data []byte, client *gitlab.Client, projectID any) (*Iss
 		Description: raw.Attributes.Description,
 		Status:      raw.Attributes.Status,
 		MileStoneID: milestoneID,
+		Labels: labelOpts.Names(map[string]string{
+			"status":     raw.Attributes.Status,
+			"type":       raw.Attributes.Type,
+			"priority":   raw.Attributes.Priority,
+			"resolution": raw.Attributes.Resolution,
+			"component":  raw.Attributes.Component,
+			"version":    raw.Attributes.Version,
+			"severity":   raw.Attributes.Severity,
+		}),
 	}
 
 	return flat, nil
+}
+
+func ensureLabels(client *gitlab.Client, projectID any, names []string, cfg *config.Config) error {
+	if !cfg.Labels.Enabled || !cfg.Labels.CreateMissing || len(names) == 0 || cfg.DryRun {
+		return nil
+	}
+	return labels.Ensure(client, projectID, names)
+}
+
+func missingLabels(existing, desired []string) []string {
+	have := make(map[string]bool, len(existing))
+	for _, label := range existing {
+		have[label] = true
+	}
+	var missing []string
+	for _, label := range desired {
+		if !have[label] {
+			missing = append(missing, label)
+		}
+	}
+	return missing
 }
