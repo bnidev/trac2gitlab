@@ -166,41 +166,47 @@ async function testConnection(kind) {
   }
 }
 
-async function saveConnection() {
+async function saveService(kind) {
   const name = window.currentProject;
-  const el = document.getElementById("connVerdict");
+  const el = document.getElementById(kind === "trac" ? "tracTest" : "gitlabTest");
   el.hidden = false;
   if (!name) {
     el.textContent = "Select or create a project first.";
     el.className = "verdict";
     return;
   }
-  const payload = {
+  const payload = kind === "trac" ? {
     tracBaseUrl: document.getElementById("fTracUrl").value,
     tracRpcPath: document.getElementById("fTracRpc").value,
     tracUser: document.getElementById("fTracUser").value,
     tracPassword: document.getElementById("fTracPass").value,
     tracGateUser: document.getElementById("fTracHtUser").value,
     tracGatePass: document.getElementById("fTracHtPass").value,
-    gitlabGateUser: document.getElementById("fGitlabHtUser").value,
-    gitlabGatePass: document.getElementById("fGitlabHtPass").value,
+  } : {
     gitlabUrl: document.getElementById("fGitlabUrl").value,
     gitlabToken: document.getElementById("fGitlabToken").value,
     gitlabProject: document.getElementById("fGitlabProj").value,
+    gitlabGateUser: document.getElementById("fGitlabHtUser").value,
+    gitlabGatePass: document.getElementById("fGitlabHtPass").value,
   };
+  el.textContent = "Saving…";
+  el.className = "verdict";
   try {
     const res = await fetch("/api/project/connection?project=" + encodeURIComponent(name), {
       method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(await errText(res));
-    document.getElementById("fTracPass").value = "";
-    document.getElementById("fTracHtPass").value = "";
-    document.getElementById("fGitlabHtPass").value = "";
-    document.getElementById("fGitlabToken").value = "";
-    el.textContent = "Saved migration.yaml + .env locally. Secrets stay server-side.";
+    for (const id of ["fTracPass", "fTracHtPass", "fGitlabToken", "fGitlabHtPass"]) {
+      document.getElementById(id).value = "";
+    }
+    await loadConnection("?project=" + encodeURIComponent(name));
+    el.textContent = (kind === "trac" ? "Trac" : "GitLab") + " connection saved to migration.yaml + .env.";
     el.className = "verdict ok";
   } catch (e) {
-    el.textContent = "Save failed: " + e.message;
+    const msg = e instanceof TypeError && e.message === "Failed to fetch"
+      ? "no response — is trac2gitlab serve still running?"
+      : e.message;
+    el.textContent = "Save failed: " + msg;
     el.className = "verdict fail";
   }
 }
@@ -477,7 +483,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderSteps();
   showStep("connect");
   document.getElementById("createProject").addEventListener("click", createProject);
-  document.getElementById("saveConnection").addEventListener("click", saveConnection);
+  document.getElementById("saveTrac").addEventListener("click", () => saveService("trac"));
+  document.getElementById("saveGitlab").addEventListener("click", () => saveService("gitlab"));
   document.getElementById("testTrac").addEventListener("click", () => testConnection("trac"));
   document.getElementById("testGitlab").addEventListener("click", () => testConnection("gitlab"));
   for (const [box, fields] of [["tracHtaccess", "tracHtaccessFields"], ["gitlabHtaccess", "gitlabHtaccessFields"]]) {
