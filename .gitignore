@@ -33,6 +33,15 @@ Thumbs.db
 # Data export
 data/**
 
+# Migration projects (local only)
+projects/*
+!projects/.gitkeep
+
+# Environment files
+.env
+.env.*
+!.env.example
+
 # Configuration files
 config.yaml
 

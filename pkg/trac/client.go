@@ -3,6 +3,7 @@ package trac
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"slices"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -13,13 +14,33 @@ type Client struct {
 	rpc *xmlrpc.Client
 }
 
+type basicAuthTransport struct {
+	username string
+	password string
+	base     http.RoundTripper
+}
+
+func (t *basicAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.SetBasicAuth(t.username, t.password)
+	return t.base.RoundTrip(clone)
+}
+
 // NewTracClient creates a new Trac XML-RPC client.
 func NewTracClient(config *config.Config) (*Client, error) {
 	url := fmt.Sprintf("%s%s", config.Trac.BaseURL, config.Trac.RPCPath)
 
 	slog.Debug("Creating Trac XML-RPC client", "url", url)
 
-	rpcClient, err := xmlrpc.NewClient(url, nil)
+	var transport http.RoundTripper
+	if config.Trac.Username != "" {
+		transport = &basicAuthTransport{
+			username: config.Trac.Username,
+			password: config.Trac.Password,
+			base:     http.DefaultTransport,
+		}
+	}
+	rpcClient, err := xmlrpc.NewClient(url, transport)
 	if err != nil {
 		return nil, err
 	}
