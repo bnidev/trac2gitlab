@@ -33,6 +33,7 @@ configuration, CLI reference, migration flow, and limitations.
 - Validate the target against the export (counts, timestamps, authors, attachments, wiki)
 - Run a read-only preflight (Trac/GitLab reachability, role, target state, identities)
 - Summarise the export and propose author mappings (`discover`)
+- Show migration status (`status`, `--json`)
 
 ## Planned Features
 

@@ -65,6 +65,9 @@ Per-object mappings (`data/trac-notes.json`, `data/trac-attachments.json`,
 `data/trac-wiki-attachments.json`) let reruns skip completed objects. Rerun the
 same command to retry failed work.
 
+`trac2gitlab status --project-dir projects/<name>` prints the current state;
+add `--json` for agents/UI.
+
 ## Author patch
 
 GitLab's API cannot set an issue/note author. The importer creates them with the

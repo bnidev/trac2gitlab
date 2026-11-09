@@ -34,17 +34,12 @@ Do not start if preflight is `BLOCKED` or `NOT READY`.
    `migrate` defaults to dry-run. It writes `state/migration.yaml` with
    per-phase counts but no GitLab objects.
 
-3. **Review the plan.** Read `state/migration.yaml` and present:
-
-   | Phase | Total | Completed | Failed |
-   |---|---|---|---|
-   | issues | | | |
-   | notes | | | |
-   | attachments | | | |
-   | wiki | | | |
-
-   Also list the first errors if any. A dry-run with failures must be fixed
-   before executing.
+3. **Review the plan.** Run:
+   ```bash
+   trac2gitlab status --project-dir projects/<name> --json
+   ```
+   Present the per-phase counts and first errors. A dry-run with failures must
+   be fixed before executing.
 
 4. **Confirm.** Ask explicitly: write these counted objects to GitLab? Do not
    interpret silence as consent. If the user hesitates, stay in dry-run.
