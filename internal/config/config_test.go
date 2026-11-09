@@ -30,8 +30,8 @@ import_options:
 	t.Setenv("TRAC_URL", "")
 	t.Setenv("TRAC_USER", "trac-user")
 	t.Setenv("TRAC_PASSWORD", "trac-pass")
-	t.Setenv("HTACCESS_USER", "gate-user")
-	t.Setenv("HTACCESS_PASSWORD", "gate-pass")
+	t.Setenv("TRAC_HTACCESS_USER", "gate-user")
+	t.Setenv("TRAC_HTACCESS_PASSWORD", "gate-pass")
 
 	cfg, err := LoadProject(dir)
 	if err != nil {

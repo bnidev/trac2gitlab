@@ -39,6 +39,13 @@
             <label>RPC path<input id="fTracRpc" class="input mono" placeholder="/xmlrpc"></label>
             <label>Trac user<input id="fTracUser" class="input mono" placeholder="" autocomplete="off"></label>
             <label>Trac password<input id="fTracPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            <label class="checkline"><input type="checkbox" id="tracHtaccess"> Trac sits behind htaccess</label>
+          </div>
+          <div class="htaccess" id="tracHtaccessFields" hidden>
+            <div class="form">
+              <label>htaccess user<input id="fTracHtUser" class="input mono" placeholder="" autocomplete="off"></label>
+              <label>htaccess password<input id="fTracHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            </div>
           </div>
           <div id="tracTest" class="verdict" hidden></div>
         </div>
@@ -48,16 +55,15 @@
             <label>GitLab URL<input id="fGitlabUrl" class="input mono" placeholder="https://gitlab.example.com"></label>
             <label>GitLab token<input id="fGitlabToken" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
             <label>GitLab project<input id="fGitlabProj" class="input mono" placeholder="group/project or numeric id"></label>
-            <span></span>
+            <label class="checkline"><input type="checkbox" id="gitlabHtaccess"> GitLab sits behind htaccess</label>
+          </div>
+          <div class="htaccess" id="gitlabHtaccessFields" hidden>
+            <div class="form">
+              <label>htaccess user<input id="fGitlabHtUser" class="input mono" placeholder="" autocomplete="off"></label>
+              <label>htaccess password<input id="fGitlabHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            </div>
           </div>
           <div id="gitlabTest" class="verdict" hidden></div>
-        </div>
-        <div class="subcard">
-          <div class="row spread"><span class="mono muted">SITE GATE · htaccess, optional second layer</span></div>
-          <div class="form">
-            <label>Gate user<input id="fHtUser" class="input mono" placeholder="" autocomplete="off"></label>
-            <label>Gate password<input id="fHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
-          </div>
         </div>
         <div class="row"><button id="saveConnection" class="btn">Save connection</button><span class="muted">writes migration.yaml + .env locally</span></div>
         <div id="connVerdict" class="verdict" hidden></div>

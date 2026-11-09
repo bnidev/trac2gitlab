@@ -73,6 +73,11 @@ type GitLabConfig struct {
 	ProjectID int    `yaml:"project_id"`
 	Project   string `yaml:"project"`
 
+	// Optional HTTP site gate (e.g. htaccess) in front of GitLab.
+	// Env-only, never YAML. Composes with token auth (separate headers).
+	HtaccessUser string `yaml:"-"`
+	HtaccessPass string `yaml:"-"`
+
 	ProjectPath string `yaml:"-"`
 }
 
@@ -158,8 +163,8 @@ func applyEnv(cfg *Config) {
 	cfg.Trac.BaseURL = strings.TrimRight(cfg.Trac.BaseURL, "/")
 	cfg.Trac.Username = os.Getenv("TRAC_USER")
 	cfg.Trac.Password = os.Getenv("TRAC_PASSWORD")
-	cfg.Trac.HtaccessUser = os.Getenv("HTACCESS_USER")
-	cfg.Trac.HtaccessPass = os.Getenv("HTACCESS_PASSWORD")
+	cfg.Trac.HtaccessUser = os.Getenv("TRAC_HTACCESS_USER")
+	cfg.Trac.HtaccessPass = os.Getenv("TRAC_HTACCESS_PASSWORD")
 
 	if v := firstEnv("GITLAB_URL", "GITLAB_HOST"); v != "" {
 		cfg.GitLab.BaseURL = v
@@ -171,6 +176,8 @@ func applyEnv(cfg *Config) {
 	if v := os.Getenv("GITLAB_TOKEN"); v != "" {
 		cfg.GitLab.Token = v
 	}
+	cfg.GitLab.HtaccessUser = os.Getenv("GITLAB_HTACCESS_USER")
+	cfg.GitLab.HtaccessPass = os.Getenv("GITLAB_HTACCESS_PASSWORD")
 	if v := os.Getenv("GITLAB_PROJECT"); v != "" {
 		cfg.GitLab.Project = v
 	}

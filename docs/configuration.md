@@ -17,7 +17,8 @@ from the process environment. Existing environment variables win over `.env`.
 | `TRAC_URL` | Trac base URL, e.g. `https://trac.example.com/my-project` |
 | `TRAC_USER` | Trac XML-RPC username |
 | `TRAC_PASSWORD` | Trac XML-RPC password |
-| `HTACCESS_USER` / `HTACCESS_PASSWORD` | Optional HTTP site gate (htaccess) in front of Trac; when set, this pair goes on the wire instead of `TRAC_USER`/`TRAC_PASSWORD` |
+| `TRAC_HTACCESS_USER` / `TRAC_HTACCESS_PASSWORD` | Optional htaccess gate in front of Trac; when set, this pair goes on the wire instead of `TRAC_USER`/`TRAC_PASSWORD` |
+| `GITLAB_HTACCESS_USER` / `GITLAB_HTACCESS_PASSWORD` | Optional htaccess gate in front of GitLab; composes with token auth |
 
 Never put tokens or passwords in `migration.yaml`.
 

@@ -126,11 +126,20 @@ async function loadConnection(q) {
   document.getElementById("fGitlabUrl").value = body.gitlabUrl || "";
   document.getElementById("fGitlabProj").value = body.gitlabProject || "";
   document.getElementById("fTracUser").value = body.tracUser || "";
-  document.getElementById("fHtUser").value = body.htaccessUser || "";
+  document.getElementById("fTracHtUser").value = body.tracGateUser || "";
+  document.getElementById("fGitlabHtUser").value = body.gitlabGateUser || "";
+  const tracGate = !!body.tracGateUser || body.hasTracGatePassword;
+  const gitlabGate = !!body.gitlabGateUser || body.hasGitlabGatePassword;
+  document.getElementById("tracHtaccess").checked = tracGate;
+  document.getElementById("tracHtaccessFields").hidden = !tracGate;
+  document.getElementById("gitlabHtaccess").checked = gitlabGate;
+  document.getElementById("gitlabHtaccessFields").hidden = !gitlabGate;
   document.getElementById("fTracPass").value = "";
   document.getElementById("fTracPass").placeholder = body.hasTracPassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
-  document.getElementById("fHtPass").value = "";
-  document.getElementById("fHtPass").placeholder = body.hasHtaccessPassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+  document.getElementById("fTracHtPass").value = "";
+  document.getElementById("fTracHtPass").placeholder = body.hasTracGatePassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+  document.getElementById("fGitlabHtPass").value = "";
+  document.getElementById("fGitlabHtPass").placeholder = body.hasGitlabGatePassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
   document.getElementById("fGitlabToken").value = "";
   document.getElementById("fGitlabToken").placeholder = body.hasGitlabToken ? "stored ✓ — leave blank to keep" : "only sent, never shown";
 }
@@ -168,8 +177,10 @@ async function saveConnection() {
     tracRpcPath: document.getElementById("fTracRpc").value,
     tracUser: document.getElementById("fTracUser").value,
     tracPassword: document.getElementById("fTracPass").value,
-    htaccessUser: document.getElementById("fHtUser").value,
-    htaccessPass: document.getElementById("fHtPass").value,
+    tracGateUser: document.getElementById("fTracHtUser").value,
+    tracGatePass: document.getElementById("fTracHtPass").value,
+    gitlabGateUser: document.getElementById("fGitlabHtUser").value,
+    gitlabGatePass: document.getElementById("fGitlabHtPass").value,
     gitlabUrl: document.getElementById("fGitlabUrl").value,
     gitlabToken: document.getElementById("fGitlabToken").value,
     gitlabProject: document.getElementById("fGitlabProj").value,
@@ -180,7 +191,8 @@ async function saveConnection() {
     });
     if (!res.ok) throw new Error(await errText(res));
     document.getElementById("fTracPass").value = "";
-    document.getElementById("fHtPass").value = "";
+    document.getElementById("fTracHtPass").value = "";
+    document.getElementById("fGitlabHtPass").value = "";
     document.getElementById("fGitlabToken").value = "";
     el.textContent = "Saved migration.yaml + .env locally. Secrets stay server-side.";
     el.className = "verdict ok";
@@ -465,6 +477,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("saveConnection").addEventListener("click", saveConnection);
   document.getElementById("testTrac").addEventListener("click", () => testConnection("trac"));
   document.getElementById("testGitlab").addEventListener("click", () => testConnection("gitlab"));
+  for (const [box, fields] of [["tracHtaccess", "tracHtaccessFields"], ["gitlabHtaccess", "gitlabHtaccessFields"]]) {
+    document.getElementById(box).addEventListener("change", (e) => {
+      document.getElementById(fields).hidden = !e.target.checked;
+    });
+  }
   document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showStep(b.dataset.goto)));
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);

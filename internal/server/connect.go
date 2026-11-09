@@ -118,14 +118,17 @@ type connectionForm struct {
 	TracRPCPath  string `json:"tracRpcPath"`
 	TracUser     string `json:"tracUser,omitempty"`
 	TracPassword string `json:"tracPassword,omitempty"`
-	HtaccessUser string `json:"htaccessUser,omitempty"`
-	HtaccessPass string `json:"htaccessPass,omitempty"`
+	TracGateUser string `json:"tracGateUser,omitempty"`
+	TracGatePass string `json:"tracGatePass,omitempty"`
+	GitlabGateUser string `json:"gitlabGateUser,omitempty"`
+	GitlabGatePass string `json:"gitlabGatePass,omitempty"`
 	GitLabURL    string `json:"gitlabUrl"`
 	GitLabToken  string `json:"gitlabToken,omitempty"`
 	GitLabProj   string `json:"gitlabProject"`
 	HasEnv       bool   `json:"hasEnv"`
 	HasTracPass  bool   `json:"hasTracPassword"`
-	HasHtaccess  bool   `json:"hasHtaccessPassword"`
+	HasTracGate  bool   `json:"hasTracGatePassword"`
+	HasGitlabGate bool  `json:"hasGitlabGatePassword"`
 	HasToken     bool   `json:"hasGitlabToken"`
 }
 
@@ -144,13 +147,15 @@ func (s *Server) handleGetConnection(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, connectionForm{
 		TracBaseURL: cfg.Trac.BaseURL,
 		TracRPCPath: cfg.Trac.RPCPath,
-		TracUser:    cfg.Trac.Username,
-		HtaccessUser: cfg.Trac.HtaccessUser,
+		TracUser:     cfg.Trac.Username,
+		TracGateUser: cfg.Trac.HtaccessUser,
+		GitlabGateUser: cfg.GitLab.HtaccessUser,
 		GitLabURL:   cfg.GitLab.BaseURL,
 		GitLabProj:  project,
 		HasEnv:      hasFile(dir, ".env"),
 		HasTracPass: cfg.Trac.Password != "",
-		HasHtaccess: cfg.Trac.HtaccessPass != "",
+		HasTracGate: cfg.Trac.HtaccessPass != "",
+		HasGitlabGate: cfg.GitLab.HtaccessPass != "",
 		HasToken:    cfg.GitLab.Token != "",
 	})
 }
@@ -203,11 +208,17 @@ func (s *Server) handlePutConnection(w http.ResponseWriter, r *http.Request) {
 	if v := form.TracPassword; v != "" {
 		env["TRAC_PASSWORD"] = v
 	}
-	if v := form.HtaccessUser; v != "" {
-		env["HTACCESS_USER"] = v
+	if v := form.TracGateUser; v != "" {
+		env["TRAC_HTACCESS_USER"] = v
 	}
-	if v := form.HtaccessPass; v != "" {
-		env["HTACCESS_PASSWORD"] = v
+	if v := form.TracGatePass; v != "" {
+		env["TRAC_HTACCESS_PASSWORD"] = v
+	}
+	if v := form.GitlabGateUser; v != "" {
+		env["GITLAB_HTACCESS_USER"] = v
+	}
+	if v := form.GitlabGatePass; v != "" {
+		env["GITLAB_HTACCESS_PASSWORD"] = v
 	}
 	if v := strings.TrimSpace(form.GitLabURL); v != "" {
 		env["GITLAB_URL"] = v
