@@ -16,15 +16,15 @@ type AppContext struct {
 	ProjectDir string
 }
 
-// EnsureProjectID resolves gitlab.project to a numeric ID when needed.
+// EnsureProjectID resolves gitlab.project to a numeric ID and path when needed.
 func (a *AppContext) EnsureProjectID() error {
 	if a.Config == nil {
 		return fmt.Errorf("configuration not loaded")
 	}
-	if a.Config.GitLab.ProjectID > 0 {
+	if a.Config.GitLab.ProjectID > 0 && a.Config.GitLab.ProjectPath != "" {
 		return nil
 	}
-	if a.Config.GitLab.Project == "" {
+	if a.Config.GitLab.Project == "" && a.Config.GitLab.ProjectID <= 0 {
 		return fmt.Errorf("gitlab.project_id or gitlab.project is required")
 	}
 
@@ -32,10 +32,15 @@ func (a *AppContext) EnsureProjectID() error {
 	if err != nil {
 		return err
 	}
-	project, err := client.GetProject(a.Config.GitLab.Project)
+	ref := any(a.Config.GitLab.Project)
+	if a.Config.GitLab.Project == "" {
+		ref = a.Config.GitLab.ProjectID
+	}
+	project, err := client.GetProject(ref)
 	if err != nil {
 		return fmt.Errorf("resolve gitlab project %q: %w", a.Config.GitLab.Project, err)
 	}
 	a.Config.GitLab.ProjectID = int(project.ID)
+	a.Config.GitLab.ProjectPath = project.PathWithNamespace
 	return nil
 }

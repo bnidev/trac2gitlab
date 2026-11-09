@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
+	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/internal/utils"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 )
@@ -28,6 +29,17 @@ func (r *Result) fail(err error) {
 
 func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) {
 	var result Result
+
+	refs, err := references.Load(references.Options{
+		Enabled:        config.References.Enabled,
+		TicketsFile:    config.References.TicketsFile,
+		ChangesetsFile: config.References.ChangesetsFile,
+		BaseURL:        config.GitLab.BaseURL,
+		ProjectPath:    config.GitLab.ProjectPath,
+	})
+	if err != nil {
+		return result, err
+	}
 
 	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
@@ -56,6 +68,8 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 			result.fail(err)
 			return result, fmt.Errorf("failed to process issue: %w", err)
 		}
+		flat.Title = refs.Rewrite(flat.Title)
+		flat.Description = refs.Rewrite(flat.Description)
 
 		existingIssue, err := client.GetIssue(project.ID, flat.ID)
 		if err != nil {

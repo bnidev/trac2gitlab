@@ -24,6 +24,7 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 - Import ticket comments with original timestamps; note authors are recorded for the author patch pass
 - Upload ticket attachments and link them from issue descriptions
 - Import wiki pages and attachments (latest version; original author/date recorded in a footer)
+- Rewrite ticket IDs and changeset references using explicit mapping files
 
 ## Planned Features
 
@@ -90,6 +91,23 @@ trac2gitlab migrate --project-dir projects/my-project --execute
 
 `migrate` defaults to `--dry-run`; per-phase progress is written to
 `projects/<name>/state/migration.yaml`.
+
+## Reference rewriting
+
+Ticket and changeset references are rewritten during import using explicit maps:
+
+```yaml
+references:
+  enabled: true
+  tickets_file: mappings/trac-tickets.json
+  changesets_file: mappings/hg-changesets.json
+```
+
+- `trac-tickets.json`: `{"tickets": {"1": 3}}` (Trac ID → GitLab IID)
+- `hg-changesets.json`: `{"changesets": {"<hg-node>": "<git-sha>"}}`
+
+Missing files are allowed: ticket references stay unchanged, and changeset
+references are left as-is. Fenced code blocks are not rewritten.
 
 ## Restoring authors
 

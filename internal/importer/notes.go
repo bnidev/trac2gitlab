@@ -13,6 +13,7 @@ import (
 
 	"github.com/bnidev/trac2gitlab/internal/config"
 	"github.com/bnidev/trac2gitlab/internal/identity"
+	"github.com/bnidev/trac2gitlab/internal/references"
 	"github.com/bnidev/trac2gitlab/internal/utils"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
@@ -38,6 +39,17 @@ type noteMapping struct {
 
 func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	var result Result
+
+	refs, err := references.Load(references.Options{
+		Enabled:        cfg.References.Enabled,
+		TicketsFile:    cfg.References.TicketsFile,
+		ChangesetsFile: cfg.References.ChangesetsFile,
+		BaseURL:        cfg.GitLab.BaseURL,
+		ProjectPath:    cfg.GitLab.ProjectPath,
+	})
+	if err != nil {
+		return result, err
+	}
 
 	project, err := client.GetProject(cfg.GitLab.ProjectID)
 	if err != nil {
@@ -109,6 +121,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 				continue
 			}
 
+			body = refs.Rewrite(body)
 			authorID := resolveAuthor(users, resolver, comment.Author)
 			if authorID == 0 {
 				body += fmt.Sprintf("\n\n---\n_Originally by %s at %s_", comment.Author, comment.Time.Format(time.RFC3339))

@@ -13,14 +13,22 @@ import (
 
 // Config holds the configuration for the application
 type Config struct {
-	General       General       `yaml:"general"`
-	Trac          TracConfig    `yaml:"trac"`
-	GitLab        GitLabConfig  `yaml:"gitlab"`
-	ExportOptions ExportOptions `yaml:"export_options"`
-	ImportOptions ImportOptions `yaml:"import_options"`
+	General       General          `yaml:"general"`
+	Trac          TracConfig       `yaml:"trac"`
+	GitLab        GitLabConfig     `yaml:"gitlab"`
+	ExportOptions ExportOptions    `yaml:"export_options"`
+	ImportOptions ImportOptions    `yaml:"import_options"`
+	References    ReferenceOptions `yaml:"references"`
 
 	ProjectDir string `yaml:"-"`
 	DryRun     bool   `yaml:"-"`
+}
+
+// ReferenceOptions controls Trac reference rewriting.
+type ReferenceOptions struct {
+	Enabled        bool   `yaml:"enabled"`
+	TicketsFile    string `yaml:"tickets_file"`
+	ChangesetsFile string `yaml:"changesets_file"`
 }
 
 // General holds general configuration options
@@ -45,6 +53,8 @@ type GitLabConfig struct {
 	Token     string `yaml:"token"`
 	ProjectID int    `yaml:"project_id"`
 	Project   string `yaml:"project"`
+
+	ProjectPath string `yaml:"-"`
 }
 
 // ExportOptions holds the options for exporting data from Trac
@@ -170,6 +180,18 @@ func normalize(cfg *Config, projectDir string) {
 	if !filepath.IsAbs(cfg.ImportOptions.UsersFile) {
 		cfg.ImportOptions.UsersFile = filepath.Join(projectDir, cfg.ImportOptions.UsersFile)
 	}
+	if cfg.References.TicketsFile == "" {
+		cfg.References.TicketsFile = "mappings/trac-tickets.json"
+	}
+	if !filepath.IsAbs(cfg.References.TicketsFile) {
+		cfg.References.TicketsFile = filepath.Join(projectDir, cfg.References.TicketsFile)
+	}
+	if cfg.References.ChangesetsFile == "" {
+		cfg.References.ChangesetsFile = "mappings/hg-changesets.json"
+	}
+	if !filepath.IsAbs(cfg.References.ChangesetsFile) {
+		cfg.References.ChangesetsFile = filepath.Join(projectDir, cfg.References.ChangesetsFile)
+	}
 }
 
 func warnIncomplete(cfg *Config) {
@@ -256,6 +278,11 @@ func DefaultConfig() Config {
 			ImportWiki:        true,
 			UsersFile:         "mappings/users.yaml",
 			CreateUsers:       false,
+		},
+		References: ReferenceOptions{
+			Enabled:        true,
+			TicketsFile:    "mappings/trac-tickets.json",
+			ChangesetsFile: "mappings/hg-changesets.json",
 		},
 	}
 }
