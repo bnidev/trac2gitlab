@@ -56,6 +56,12 @@
       <pre id="jobLog" class="mono">no job yet</pre>
     </section>
     <section class="card">
+      <div class="card-h mono">EXECUTE · writes to GitLab (gated)</div>
+      <div class="row"><label class="confirm"><input type="checkbox" id="confirmExecute"> <span>I confirm writing to GitLab. No force, no undo.</span></label></div>
+      <div class="row"><button id="runExecute" class="btn danger" disabled>Execute --execute</button><span class="muted">requires READY preflight + dry-run review</span></div>
+      <div id="executeVerdict" class="verdict">—</div>
+    </section>
+    <section class="card">
       <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>
       <div class="row"><button id="validateUsers" class="btn">Validate</button><span class="muted" id="usersHint">local parse only · --check-gitlab stays in the CLI</span></div>
       <div id="users"></div>
