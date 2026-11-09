@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>trac2gitlab · dashboard</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">◈ trac2gitlab</div>
+  <div class="proj mono" id="projLabel">read-only dashboard</div>
+  <div class="env mono">local · serve (slice 1)</div>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="side-h mono">MIGRATION</div>
+    <nav id="steps">
+      <div class="step active"><span class="dot">1</span><span>Connect</span></div>
+      <div class="step"><span class="dot">2</span><span>Preflight</span></div>
+      <div class="step"><span class="dot">3</span><span>Identities</span></div>
+      <div class="step"><span class="dot">4</span><span>Export</span></div>
+      <div class="step"><span class="dot">5</span><span>Dry-run</span></div>
+      <div class="step locked"><span class="dot">6</span><span>Execute</span></div>
+      <div class="step"><span class="dot">7</span><span>Patch + Validate</span></div>
+    </nav>
+    <div class="side-h mono">PROJECTS</div>
+    <nav id="projects">
+      {{range .Projects}}<button class="proj-btn mono" data-name="{{.Name}}">{{.Name}}</button>{{else}}<div class="muted">No projects in {{.Root}}</div>{{end}}
+    </nav>
+    <div class="hint">Slice 1 is read-only: status + cached reports only. No target mutation.</div>
+  </aside>
+  <main class="center">
+    <h1>Preflight</h1>
+    <p class="sub">Read-only checks from <span class="mono">reports/preflight.md</span>. No target mutation until READY.</p>
+    <section class="card">
+      <div class="card-h mono">STATUS · state/migration.yaml</div>
+      <pre id="status" class="mono">select a project…</pre>
+    </section>
+    <section class="card">
+      <div class="card-h mono">CHECKLIST · cached preflight report</div>
+      <div id="verdict" class="verdict">—</div>
+      <pre id="report" class="mono">select a project…</pre>
+    </section>
+    <section class="card">
+      <div class="card-h mono">VALIDATION · reports/validation.md</div>
+      <pre id="validation" class="mono">—</pre>
+    </section>
+  </main>
+</div>
+<script src="/static/app.js" defer></script>
+</body>
+</html>

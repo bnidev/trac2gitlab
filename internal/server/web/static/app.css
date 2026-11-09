@@ -1,0 +1,39 @@
+:root{
+  --bg:#F8FAFC; --card:#FFFFFF; --ink:#0F172A; --muted:#475569;
+  --line:#E2E8F0; --primary:#2563EB; --cta:#EA580C;
+  --ok-bg:#ECFDF5; --ok:#065F46; --warn-bg:#FFFBEB; --warn:#92400E;
+  --dark:#0F172A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+.topbar{display:flex;gap:12px;align-items:center;padding:14px 22px;
+  background:var(--card);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:18px}
+.proj{flex:1;color:var(--muted);font-size:12px}
+.env{color:var(--primary);font-size:11px}
+.layout{display:flex;min-height:calc(100vh - 53px)}
+.sidebar{width:280px;background:var(--card);border-right:1px solid var(--line);padding:18px}
+.side-h{font-size:11px;font-weight:700;color:#94A3B8;margin:14px 0 8px}
+.step{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;margin-bottom:2px}
+.step.active{background:#EFF6FF;outline:1.5px solid var(--primary)}
+.step.locked{color:#94A3B8}
+.dot{width:28px;height:28px;border-radius:9999px;background:#F1F5F9;display:flex;
+  align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.step.active .dot{background:var(--primary);color:#fff}
+.proj-btn{display:block;width:100%;text-align:left;margin-bottom:6px;padding:8px 10px;
+  border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-size:12px}
+.proj-btn.sel{border-color:var(--primary);background:#EFF6FF}
+.hint{font-size:12px;color:var(--muted);margin-top:16px}
+.center{flex:1;padding:26px;max-width:1000px}
+h1{font-size:30px;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.card-h{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px}
+pre{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);
+  border-radius:10px;padding:12px;font-size:12px;margin:0}
+.verdict{padding:12px 16px;border-radius:12px;background:#F1F5F9;
+  font-weight:700;font-size:13px;margin-bottom:10px}
+.verdict.ok{background:var(--ok-bg);color:var(--ok)}
+.verdict.warn{background:var(--warn-bg);color:var(--warn)}
