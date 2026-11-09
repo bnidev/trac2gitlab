@@ -122,6 +122,8 @@ type connectionForm struct {
 	GitLabToken  string `json:"gitlabToken,omitempty"`
 	GitLabProj   string `json:"gitlabProject"`
 	HasEnv       bool   `json:"hasEnv"`
+	HasTracPass  bool   `json:"hasTracPassword"`
+	HasToken     bool   `json:"hasGitlabToken"`
 }
 
 // handleGetConnection returns the connection form without secrets.
@@ -139,9 +141,12 @@ func (s *Server) handleGetConnection(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, connectionForm{
 		TracBaseURL: cfg.Trac.BaseURL,
 		TracRPCPath: cfg.Trac.RPCPath,
+		TracUser:    cfg.Trac.Username,
 		GitLabURL:   cfg.GitLab.BaseURL,
 		GitLabProj:  project,
 		HasEnv:      hasFile(dir, ".env"),
+		HasTracPass: cfg.Trac.Password != "",
+		HasToken:    cfg.GitLab.Token != "",
 	})
 }
 

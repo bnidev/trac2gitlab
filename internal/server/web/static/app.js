@@ -125,9 +125,11 @@ async function loadConnection(q) {
   document.getElementById("fTracRpc").value = body.tracRpcPath || "";
   document.getElementById("fGitlabUrl").value = body.gitlabUrl || "";
   document.getElementById("fGitlabProj").value = body.gitlabProject || "";
-  document.getElementById("fTracUser").value = "";
+  document.getElementById("fTracUser").value = body.tracUser || "";
   document.getElementById("fTracPass").value = "";
+  document.getElementById("fTracPass").placeholder = body.hasTracPassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
   document.getElementById("fGitlabToken").value = "";
+  document.getElementById("fGitlabToken").placeholder = body.hasGitlabToken ? "stored ✓ — leave blank to keep" : "only sent, never shown";
 }
 
 async function testConnection(kind) {
