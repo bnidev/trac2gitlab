@@ -19,10 +19,12 @@ var webFS embed.FS
 
 // Server is a read-only dashboard over migration project directories.
 // Slice 1 exposes projects, status (state/migration.yaml) and the cached
-// preflight/validation reports. It never mutates the target.
+// preflight/validation reports. Slice 4 adds background export and dry-run:
+// both write only inside the project directory, never to GitLab.
 type Server struct {
 	Root   string
 	Logger *slog.Logger
+	Jobs   *Jobs
 	tmpl   *template.Template
 	mux    *http.ServeMux
 }
@@ -34,7 +36,7 @@ func New(root string, logger *slog.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{Root: root, Logger: logger, tmpl: tmpl, mux: http.NewServeMux()}
+	s := &Server{Root: root, Logger: logger, Jobs: NewJobs(), tmpl: tmpl, mux: http.NewServeMux()}
 	s.routes()
 	return s, nil
 }
@@ -49,6 +51,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/preflight/run", s.handlePreflightRun)
 	s.mux.HandleFunc("GET /api/users", s.handleUsers)
 	s.mux.HandleFunc("POST /api/users/validate", s.handleUsersValidate)
+	s.mux.HandleFunc("POST /api/export/run", s.handleExportRun)
+	s.mux.HandleFunc("POST /api/migrate/dry-run", s.handleDryRun)
+	s.mux.HandleFunc("GET /api/job", s.handleJob)
 	s.mux.HandleFunc("GET /api/validation", s.handleReport("reports/validation.md"))
 
 	static, err := fs.Sub(webFS, "web/static")

@@ -23,6 +23,7 @@ async function select(name) {
   document.getElementById("status").textContent = JSON.stringify(status, null, 2);
   await loadCached(q, name);
   await loadUsers(q);
+  await pollJob(q);
   const val = await getJSON("/api/validation" + q);
   document.getElementById("validation").textContent = val.exists ? val.raw : "No reports/validation.md yet";
 }
@@ -113,6 +114,79 @@ async function validateUsers() {
   }
 }
 
+let pollTimer = null;
+
+async function refreshStatus(q) {
+  const status = await getJSON("/api/status" + q);
+  document.getElementById("status").textContent = JSON.stringify(status, null, 2);
+}
+
+async function pollJob(q) {
+  const job = await getJSON("/api/job" + q);
+  const st = document.getElementById("jobStatus");
+  const log = document.getElementById("jobLog");
+  if (!job || job.exists === false) {
+    st.textContent = "no job yet";
+    st.className = "verdict";
+    return true;
+  }
+  st.textContent = job.kind + " " + job.id + " · " + job.status + (job.error ? " — " + job.error : "");
+  st.className = "verdict" + (job.status === "completed" ? " ok" : job.status === "failed" ? " fail" : "");
+  log.textContent = (job.log || []).join("\n") || "…";
+  if (job.status !== "running") {
+    await refreshStatus(q);
+    return true;
+  }
+  return false;
+}
+
+function startPolling(q) {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (await pollJob(q)) clearInterval(pollTimer);
+  }, 2000);
+}
+
+async function startRun(path, verdictId, q) {
+  const res = await fetch(path + q, {method: "POST"});
+  const body = await res.json();
+  if (!res.ok) throw new Error(body || res.statusText);
+  document.getElementById(verdictId).textContent = body.kind + " " + body.id + " started…";
+  document.getElementById(verdictId).className = "verdict";
+  startPolling(q);
+}
+
+async function runExport() {
+  const btn = document.getElementById("runExport");
+  const name = window.currentProject;
+  if (!name) return;
+  btn.disabled = true;
+  try {
+    await startRun("/api/export/run", "exportVerdict", "?project=" + encodeURIComponent(name));
+  } catch (e) {
+    const el = document.getElementById("exportVerdict");
+    el.textContent = "Export failed to start: " + e.message;
+    el.className = "verdict fail";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runDryRun() {
+  const btn = document.getElementById("runDryRun");
+  const name = window.currentProject;
+  if (!name) return;
+  btn.disabled = true;
+  try {
+    await startRun("/api/migrate/dry-run", "jobStatus", "?project=" + encodeURIComponent(name));
+  } catch (e) {
+    const el = document.getElementById("jobStatus");
+    el.textContent = "Dry-run failed to start: " + e.message;
+    el.className = "verdict fail";
+  } finally {
+    btn.disabled = false;
+  }
+}
 async function runPreflight() {
   const btn = document.getElementById("runPreflight");
   const name = window.currentProject;
@@ -141,6 +215,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);
   document.getElementById("validateUsers").addEventListener("click", validateUsers);
+  document.getElementById("runExport").addEventListener("click", runExport);
+  document.getElementById("runDryRun").addEventListener("click", runDryRun);
   const first = document.querySelector(".proj-btn");
   if (first) await select(first.dataset.name);
 });

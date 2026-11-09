@@ -28,7 +28,7 @@
     <nav id="projects">
       {{range .Projects}}<button class="proj-btn mono" data-name="{{.Name}}">{{.Name}}</button>{{else}}<div class="empty">No projects in <span class="mono">{{.Root}}</span> yet.<br><br>Create one:<br><code class="mono">trac2gitlab init --project-dir projects/demo</code><br><br>Or serve a single existing dir:<br><code class="mono">serve --projects-root .</code></div>{{end}}
     </nav>
-    <div class="hint">Slice 1 is read-only: status + cached reports only. No target mutation.</div>
+    <div class="hint">Wizard runs export + dry-run locally. Only an explicit execute writes to GitLab.</div>
   </aside>
   <main class="center">
     <h1>Preflight</h1>
@@ -43,6 +43,17 @@
       <div id="checks"></div>
       <div id="verdict" class="verdict">—</div>
       <details><summary class="mono muted">raw report</summary><pre id="report" class="mono">select a project…</pre></details>
+    </section>
+    <section class="card">
+      <div class="card-h mono">EXPORT · data/ (read-only vs Trac)</div>
+      <div class="row"><button id="runExport" class="btn">Run export</button><span class="muted">pulls tickets, wiki, users into data/</span></div>
+      <div id="exportVerdict" class="verdict">—</div>
+    </section>
+    <section class="card">
+      <div class="card-h mono">DRY-RUN · state/migration.yaml (no GitLab writes)</div>
+      <div class="row"><button id="runDryRun" class="btn">Run dry-run</button><span class="muted">previews per-phase counts</span></div>
+      <div id="jobStatus" class="verdict">—</div>
+      <pre id="jobLog" class="mono">no job yet</pre>
     </section>
     <section class="card">
       <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>

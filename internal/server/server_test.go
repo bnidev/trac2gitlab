@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestListProjectsEmpty(t *testing.T) {
@@ -71,6 +72,59 @@ func TestPreflightRunWritesReport(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "reports", "preflight.md")); err != nil {
 		t.Fatalf("expected report file: %v", err)
+	}
+}
+
+func TestJobsConflictAndCompletion(t *testing.T) {
+	r := NewJobs()
+	release := make(chan struct{})
+	first, err := r.Start("proj", "export", func(j *Job) error {
+		<-release
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Start("proj", "dry-run", func(j *Job) error { return nil }); err == nil {
+		t.Fatal("expected conflict for second concurrent job")
+	}
+	if _, err := r.Start("other", "dry-run", func(j *Job) error { return nil }); err != nil {
+		t.Fatalf("different project should not conflict: %v", err)
+	}
+	close(release)
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if got := r.Latest("proj"); got != nil && got.Status == "completed" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("job did not complete; got %+v", r.Latest("proj"))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if first.ID == "" {
+		t.Fatal("expected job id")
+	}
+}
+
+func TestRunEndpointsRejectMissingConfig(t *testing.T) {
+	srv, err := New(t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/export/run", "/api/migrate/dry-run"} {
+		req := httptest.NewRequest("POST", path+"?project=nope", nil)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status %d, want 400", path, rec.Code)
+		}
+	}
+	req := httptest.NewRequest("GET", "/api/job?project=nope", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("job status %d", rec.Code)
 	}
 }
 
