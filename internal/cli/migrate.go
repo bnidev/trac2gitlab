@@ -43,6 +43,13 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 					return
 				}
 			}
+
+			if cfg.ImportOptions.ImportNotes {
+				if err = importer.ImportNotes(client, &cfg); err != nil {
+					slog.Error("Note import failed", "errorMsg", err)
+					return
+				}
+			}
 		},
 	}
 }
