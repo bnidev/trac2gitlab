@@ -50,6 +50,13 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 					return
 				}
 			}
+
+			if cfg.ImportOptions.ImportAttachments {
+				if err = importer.ImportAttachments(client, &cfg); err != nil {
+					slog.Error("Attachment import failed", "errorMsg", err)
+					return
+				}
+			}
 		},
 	}
 }
