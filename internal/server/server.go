@@ -47,6 +47,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/status", s.handleStatus)
 	s.mux.HandleFunc("GET /api/preflight", s.handleReport("reports/preflight.md"))
 	s.mux.HandleFunc("POST /api/preflight/run", s.handlePreflightRun)
+	s.mux.HandleFunc("GET /api/users", s.handleUsers)
+	s.mux.HandleFunc("POST /api/users/validate", s.handleUsersValidate)
 	s.mux.HandleFunc("GET /api/validation", s.handleReport("reports/validation.md"))
 
 	static, err := fs.Sub(webFS, "web/static")
