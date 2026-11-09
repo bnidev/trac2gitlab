@@ -45,6 +45,7 @@ func Execute(ctx *app.AppContext) {
 func SetupCommands(ctx *app.AppContext) {
 	rootCmd.AddCommand(exportCmd(ctx))
 	rootCmd.AddCommand(initCmd(ctx))
+	rootCmd.AddCommand(discoverCmd(ctx))
 	rootCmd.AddCommand(migrateCmd(ctx))
 	rootCmd.AddCommand(patchCmd(ctx))
 	rootCmd.AddCommand(preflightCmd(ctx))

@@ -32,6 +32,7 @@ configuration, CLI reference, migration flow, and limitations.
 - Map Trac fields to GitLab labels (`trac:type:defect`, `trac:priority:major`, ...)
 - Validate the target against the export (counts, timestamps, authors, attachments, wiki)
 - Run a read-only preflight (Trac/GitLab reachability, role, target state, identities)
+- Summarise the export and propose author mappings (`discover`)
 
 ## Planned Features
 

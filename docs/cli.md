@@ -36,6 +36,17 @@ trac2gitlab export --project-dir projects/my-project
 Reads Trac over XML-RPC and writes tickets, comments, wiki pages, and
 attachments under the configured export directory (default `data/`).
 
+## `discover`
+
+```bash
+trac2gitlab discover --project-dir projects/my-project
+trac2gitlab discover --project-dir projects/my-project --write-users mappings/users.yaml
+```
+
+Summarises the export: ticket/comment/wiki/attachment counts and every author.
+`--write-users` writes a `users.yaml` skeleton with all authors unresolved; it
+refuses to overwrite an existing file.
+
 ## `migrate`
 
 ```bash
