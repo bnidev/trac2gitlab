@@ -81,12 +81,93 @@ async function loadProjectInfo(name) {
   el.innerHTML = rows.map(r => '<div class="kv"><span class="mono">' + r[0] + '</span><span>' + r[1] + '</span></div>').join("");
 }
 
+async function renderProjectList() {
+  const list = await getJSON("/api/projects");
+  const box = document.getElementById("projectList");
+  box.innerHTML = "";
+  if (!list || list.length === 0) {
+    box.innerHTML = '<span class="muted">No projects yet — create one above.</span>';
+    return list;
+  }
+  for (const p of list) {
+    const b = document.createElement("button");
+    b.className = "proj-pick mono" + (p.name === window.currentProject ? " sel" : "");
+    b.textContent = p.name;
+    b.addEventListener("click", () => select(p.name));
+    box.appendChild(b);
+  }
+  return list;
+}
+
+async function createProject() {
+  const input = document.getElementById("newProject");
+  const name = input.value.trim();
+  const el = document.getElementById("connVerdict");
+  if (!name) return;
+  try {
+    const res = await fetch("/api/projects", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name})});
+    if (!res.ok) throw new Error(await errText(res));
+    input.value = "";
+    el.textContent = "Project " + name + " created — now set its connection below.";
+    el.className = "verdict ok";
+    await renderProjectList();
+    await select(name);
+  } catch (e) {
+    el.textContent = "Create failed: " + e.message;
+    el.className = "verdict fail";
+  }
+}
+
+async function loadConnection(q) {
+  const body = await getJSON("/api/project/connection" + q);
+  document.getElementById("fTracUrl").value = body.tracBaseUrl || "";
+  document.getElementById("fTracRpc").value = body.tracRpcPath || "";
+  document.getElementById("fGitlabUrl").value = body.gitlabUrl || "";
+  document.getElementById("fGitlabProj").value = body.gitlabProject || "";
+  document.getElementById("fTracUser").value = "";
+  document.getElementById("fTracPass").value = "";
+  document.getElementById("fGitlabToken").value = "";
+}
+
+async function saveConnection() {
+  const name = window.currentProject;
+  const el = document.getElementById("connVerdict");
+  if (!name) {
+    el.textContent = "Select or create a project first.";
+    el.className = "verdict";
+    return;
+  }
+  const payload = {
+    tracBaseUrl: document.getElementById("fTracUrl").value,
+    tracRpcPath: document.getElementById("fTracRpc").value,
+    tracUser: document.getElementById("fTracUser").value,
+    tracPassword: document.getElementById("fTracPass").value,
+    gitlabUrl: document.getElementById("fGitlabUrl").value,
+    gitlabToken: document.getElementById("fGitlabToken").value,
+    gitlabProject: document.getElementById("fGitlabProj").value,
+  };
+  try {
+    const res = await fetch("/api/project/connection?project=" + encodeURIComponent(name), {
+      method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await errText(res));
+    document.getElementById("fTracPass").value = "";
+    document.getElementById("fGitlabToken").value = "";
+    el.textContent = "Saved migration.yaml + .env locally. Secrets stay server-side.";
+    el.className = "verdict ok";
+  } catch (e) {
+    el.textContent = "Save failed: " + e.message;
+    el.className = "verdict fail";
+  }
+}
+
 async function select(name) {
-  document.querySelectorAll(".proj-btn").forEach(b => b.classList.toggle("sel", b.dataset.name === name));
-  document.getElementById("projLabel").textContent = "projects / " + name;
   window.currentProject = name;
+  document.getElementById("projLabel").textContent = "projects / " + name;
+  document.querySelectorAll(".proj-pick").forEach(b => b.classList.toggle("sel", b.textContent === name));
   await loadProjectInfo(name);
   const q = "?project=" + encodeURIComponent(name);
+  await loadConnection(q);
   const status = await getJSON("/api/status" + q);
   document.getElementById("status").textContent = JSON.stringify(status, null, 2);
   await loadCached(q, name);
@@ -351,6 +432,8 @@ async function runPreflight() {
 document.addEventListener("DOMContentLoaded", async () => {
   renderSteps();
   showStep("connect");
+  document.getElementById("createProject").addEventListener("click", createProject);
+  document.getElementById("saveConnection").addEventListener("click", saveConnection);
   document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showStep(b.dataset.goto)));
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);
@@ -369,6 +452,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("confirmExecute").addEventListener("change", (e) => {
     document.getElementById("runExecute").disabled = !e.target.checked;
   });
-  const first = document.querySelector(".proj-btn");
-  if (first) await select(first.dataset.name);
+  const list = await renderProjectList();
+  if (list && list[0]) await select(list[0].name);
 });

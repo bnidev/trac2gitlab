@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
 )
 
 func TestListProjectsEmpty(t *testing.T) {
@@ -94,6 +96,83 @@ func TestPatchAndValidateRejectMissingConfig(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("validate run status %d, want 400", rec.Code)
+	}
+}
+
+func TestConnectEndpoints(t *testing.T) {
+	root := t.TempDir()
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post := func(name string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/projects", strings.NewReader(`{"name":"`+name+`"}`))
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := post("../evil"); rec.Code != http.StatusBadRequest {
+		t.Fatalf("path traversal status %d, want 400", rec.Code)
+	}
+	if rec := post("demo"); rec.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := post("demo"); rec.Code != http.StatusConflict {
+		t.Fatalf("duplicate status %d, want 409", rec.Code)
+	}
+	if !config.CheckConfigExists(filepath.Join(root, "demo")) {
+		t.Fatal("expected migration.yaml in new project")
+	}
+	get := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/api/project/connection?project=demo", nil)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := get(); rec.Code != http.StatusOK {
+		t.Fatalf("get connection status %d: %s", rec.Code, rec.Body.String())
+	} else {
+		var form map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &form); err != nil {
+			t.Fatal(err)
+		}
+		for _, k := range []string{"tracPassword", "gitlabToken", "tracUser"} {
+			if _, ok := form[k]; ok {
+				t.Fatalf("secret field %q leaked in GET response", k)
+			}
+		}
+	}
+	putBody := `{"tracBaseUrl":"https://trac.local","gitlabUrl":"https://gl.local","gitlabProject":"grp/proj","tracUser":"u","tracPassword":"p","gitlabToken":"t"}`
+	req := httptest.NewRequest("PUT", "/api/project/connection?project=demo", strings.NewReader(putBody))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("put connection status %d: %s", rec.Code, rec.Body.String())
+	}
+	yamlRaw, err := os.ReadFile(filepath.Join(root, "demo", "migration.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"\"p\"", "gitlabToken", "\"t\"", "TRAC_PASSWORD"} {
+		if strings.Contains(string(yamlRaw), secret) {
+			t.Fatalf("secret leaked into migration.yaml: %s", secret)
+		}
+	}
+	envRaw, err := os.ReadFile(filepath.Join(root, "demo", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"TRAC_URL=https://trac.local", "TRAC_USER=u", "TRAC_PASSWORD=p", "GITLAB_TOKEN=t", "GITLAB_PROJECT=grp/proj"} {
+		if !strings.Contains(string(envRaw), want) {
+			t.Fatalf("expected .env to contain %q, got:\n%s", want, envRaw)
+		}
+	}
+	st, err := os.Stat(filepath.Join(root, "demo", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0600 {
+		t.Fatalf(".env perm %o, want 600", st.Mode().Perm())
 	}
 }
 

@@ -46,6 +46,9 @@ func (s *Server) Handler() http.Handler { return s.mux }
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /api/projects", s.handleProjects)
+	s.mux.HandleFunc("POST /api/projects", s.handleCreateProject)
+	s.mux.HandleFunc("GET /api/project/connection", s.handleGetConnection)
+	s.mux.HandleFunc("PUT /api/project/connection", s.handlePutConnection)
 	s.mux.HandleFunc("GET /api/status", s.handleStatus)
 	s.mux.HandleFunc("GET /api/preflight", s.handleReport("reports/preflight.md"))
 	s.mux.HandleFunc("POST /api/preflight/run", s.handlePreflightRun)
