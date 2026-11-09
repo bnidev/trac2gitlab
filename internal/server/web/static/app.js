@@ -226,6 +226,48 @@ async function runExecute() {
   }
 }
 
+async function loadPatch(q, apply) {
+  const el = document.getElementById("patchVerdict");
+  const shell = document.getElementById("patchShell");
+  el.textContent = "Loading patch…";
+  el.className = "verdict";
+  try {
+    const res = await fetch("/api/patch" + q + "&apply=" + (apply ? "true" : "false"));
+    if (!res.ok) throw new Error(await errText(res));
+    const body = await res.json();
+    if (body.shell) {
+      shell.textContent = body.shell;
+      window.patchShell = body.shell;
+    }
+    if (body.unresolved && body.unresolved.length > 0) {
+      el.textContent = body.rows + " rows · " + body.unresolved.length + " unresolved skipped (" + body.unresolved.join(", ") + ")";
+      el.className = "verdict warn";
+    } else {
+      el.textContent = body.rows + " rows · " + (apply ? "APPLYING (DRY_RUN=false)" : "dry run — review, then tick apply");
+      el.className = "verdict " + (apply ? "fail" : "ok");
+    }
+  } catch (e) {
+    el.textContent = "Patch unavailable: " + e.message;
+    el.className = "verdict fail";
+  }
+}
+
+async function runValidate() {
+  const btn = document.getElementById("runValidate");
+  const name = window.currentProject;
+  if (!name) return;
+  btn.disabled = true;
+  try {
+    await startRun("/api/validate/run", "jobStatus", "?project=" + encodeURIComponent(name));
+  } catch (e) {
+    const el = document.getElementById("jobStatus");
+    el.textContent = "Validate failed to start: " + e.message;
+    el.className = "verdict fail";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function runPreflight() {
   const btn = document.getElementById("runPreflight");
   const name = window.currentProject;
@@ -257,6 +299,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("runExport").addEventListener("click", runExport);
   document.getElementById("runDryRun").addEventListener("click", runDryRun);
   document.getElementById("runExecute").addEventListener("click", runExecute);
+  document.getElementById("runValidate").addEventListener("click", runValidate);
+  document.getElementById("loadPatch").addEventListener("click", () => {
+    const q = "?project=" + encodeURIComponent(window.currentProject || "");
+    loadPatch(q, document.getElementById("patchApply").checked);
+  });
+  document.getElementById("copyPatch").addEventListener("click", async () => {
+    if (window.patchShell) await navigator.clipboard.writeText(window.patchShell);
+  });
   document.getElementById("confirmExecute").addEventListener("change", (e) => {
     document.getElementById("runExecute").disabled = !e.target.checked;
   });

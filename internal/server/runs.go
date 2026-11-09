@@ -11,6 +11,7 @@ import (
 	"github.com/bnidev/trac2gitlab/internal/exporter"
 	"github.com/bnidev/trac2gitlab/internal/importer"
 	"github.com/bnidev/trac2gitlab/internal/state"
+	"github.com/bnidev/trac2gitlab/internal/validate"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
@@ -48,6 +49,27 @@ func (s *Server) handleDryRun(w http.ResponseWriter, r *http.Request) {
 	s.log(r, "dry-run", "projectDir", dir)
 	job, err := s.Jobs.Start(dir, "dry-run", func(j *Job) error {
 		return runMigrate(&cfg, func(line string) { s.Jobs.Append(j.ID, line) })
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, job)
+}
+
+// handleValidateRun starts the target comparison in the background.
+// Validate only reads the export and the GitLab target and writes
+// reports/validation.md.
+func (s *Server) handleValidateRun(w http.ResponseWriter, r *http.Request) {
+	dir := ResolveProject(s.Root, r.URL.Query().Get("project"))
+	cfg, err := config.LoadProject(dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.log(r, "validate", "projectDir", dir)
+	job, err := s.Jobs.Start(dir, "validate", func(j *Job) error {
+		return runValidate(&cfg, func(line string) { s.Jobs.Append(j.ID, line) })
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -160,6 +182,32 @@ func runExport(cfg *config.Config, log func(string)) error {
 			return fmt.Errorf("export %s: %w", s.name, err)
 		}
 		log("exported " + s.name)
+	}
+	return nil
+}
+
+// runValidate mirrors the validate CLI command. It only reads the export
+// and the GitLab target and writes reports/validation.md.
+func runValidate(cfg *config.Config, log func(string)) error {
+	client, err := gitlab.NewGitLabClient(cfg)
+	if err != nil {
+		return fmt.Errorf("create gitlab client: %w", err)
+	}
+	log("comparing export with gitlab target")
+	report, err := validate.Run(client, cfg)
+	if err != nil {
+		return fmt.Errorf("validate: %w", err)
+	}
+	path := filepath.Join(cfg.ProjectDir, "reports", "validation.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, []byte(report.Markdown(filepath.Base(cfg.ProjectDir))), 0644); err != nil {
+		return fmt.Errorf("write report: %w", err)
+	}
+	log("verdict: " + report.Verdict())
+	if report.Verdict() == "FAIL" {
+		return fmt.Errorf("validation failed (%d errors)", len(report.Errors))
 	}
 	return nil
 }

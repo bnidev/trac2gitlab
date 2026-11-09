@@ -68,7 +68,16 @@
       <div id="usersVerdict" class="verdict">—</div>
     </section>
     <section class="card">
+      <div class="card-h mono">PATCH · author restore (copy to GitLab host)</div>
+      <div class="row"><button id="loadPatch" class="btn">Preview patch</button>
+        <label class="muted"><input type="checkbox" id="patchApply"> apply (DRY_RUN=false)</label>
+        <button id="copyPatch" class="btn">Copy</button></div>
+      <div id="patchVerdict" class="verdict">—</div>
+      <details open><summary class="mono muted">shell block</summary><pre id="patchShell" class="mono">press Preview patch…</pre></details>
+    </section>
+    <section class="card">
       <div class="card-h mono">VALIDATION · reports/validation.md</div>
+      <div class="row"><button id="runValidate" class="btn">Run validate</button><span class="muted">compares export with GitLab target</span></div>
       <pre id="validation" class="mono">—</pre>
     </section>
   </main>
