@@ -35,3 +35,6 @@ data/**
 
 # Configuration files
 config.yaml
+
+# Identity mapping (contains personal data)
+mappings/users.yaml
