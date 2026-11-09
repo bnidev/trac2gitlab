@@ -54,6 +54,15 @@ TRAC_PASSWORD=...
 the environment. Existing environment variables win over `.env`. Secrets never
 go into `migration.yaml`.
 
+## Run the readiness check
+
+```bash
+./trac2gitlab preflight --project-dir projects/my-project
+```
+
+This is read-only. It writes `projects/my-project/reports/preflight.md` and
+blocks on a role below Owner/Administrator or an unreachable source.
+
 ## Export from Trac
 
 ```bash
