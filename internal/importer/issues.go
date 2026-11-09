@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -12,40 +13,58 @@ import (
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 )
 
-func ImportIssues(client *gitlab.Client, config *config.Config) error {
+// Result summarises one import phase.
+type Result struct {
+	Total     int
+	Completed int
+	Failed    int
+	Errors    []string
+}
+
+func (r *Result) fail(err error) {
+	r.Failed++
+	r.Errors = append(r.Errors, err.Error())
+}
+
+func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) {
+	var result Result
+
 	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	slog.Info("Starting issue import...", "project", project.Name, "projectID", project.ID)
 
 	existingIssues, err := client.ListProjectIssues(project.ID)
 	if err != nil {
-		return fmt.Errorf("failed to list existing issues: %w", err)
+		return result, fmt.Errorf("failed to list existing issues: %w", err)
 	}
-
-	if len(existingIssues) > 0 {
-		slog.Debug("Existing issues found", "count", len(existingIssues))
-	} else {
-		slog.Debug("No existing issues found for project", "projectID", project.ID)
-	}
+	slog.Debug("Existing issues", "count", len(existingIssues))
 
 	fmt.Printf("Importing issues for project: %s (ID: %d)\n", project.Name, project.ID)
 
-	issues, err := utils.ReadFilesFromDir("data/tickets", ".json", os.Stderr)
+	issues, err := utils.ReadFilesFromDir(filepath.Join(config.ExportOptions.ExportDir, "tickets"), ".json", os.Stderr)
 	if err != nil {
-		return fmt.Errorf("failed to read milestones from directory: %w", err)
+		return result, fmt.Errorf("read tickets: %w", err)
 	}
+	result.Total = len(issues)
 
 	for _, issueData := range issues {
 		flat, err := ConvertToFlatIssue(issueData, client, project.ID)
 		if err != nil {
-			return fmt.Errorf("failed to process issue: %w", err)
+			result.fail(err)
+			return result, fmt.Errorf("failed to process issue: %w", err)
 		}
 
-		if existingIssue, err := client.GetIssue(project.ID, flat.ID); err != nil {
+		existingIssue, err := client.GetIssue(project.ID, flat.ID)
+		if err != nil {
 			slog.Debug("Importing new issue", "ID", flat.ID, "Title", flat.Title)
+			if config.DryRun {
+				slog.Info("dry-run: would create issue", "ID", flat.ID, "Title", flat.Title)
+				result.Completed++
+				continue
+			}
 
 			// Create as the admin client: only admin/owner can set IID and CreatedAt.
 			// Author attribution is fixed by the patch pass.
@@ -57,10 +76,13 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 				MilestoneID: &flat.MileStoneID,
 			})
 			if err != nil {
-				return fmt.Errorf("failed to create issue %d: %w", flat.ID, err)
+				result.fail(err)
+				return result, fmt.Errorf("failed to create issue %d: %w", flat.ID, err)
 			}
 			if created.IID != flat.ID {
-				return fmt.Errorf("issue %d was created with IID %d: admin/owner rights are required to preserve IIDs", flat.ID, created.IID)
+				err := fmt.Errorf("issue %d was created with IID %d: admin/owner rights are required to preserve IIDs", flat.ID, created.IID)
+				result.fail(err)
+				return result, err
 			}
 
 			// Update the issue status, because it cant be set on create.
@@ -73,70 +95,65 @@ func ImportIssues(client *gitlab.Client, config *config.Config) error {
 					UpdatedAt:  flat.UpdatedAt,
 				})
 				if err != nil {
-					return fmt.Errorf("failed to close issue %d: %w", flat.ID, err)
+					result.fail(err)
+					return result, fmt.Errorf("failed to close issue %d: %w", flat.ID, err)
 				}
 			}
 
 			slog.Debug("Issue created successfully", "ID", flat.ID, "Title", flat.Title)
-
-		} else {
-			slog.Debug("Issue already exists, checking for updates", "ID", flat.ID, "Title", flat.Title)
-
-			updateOpts := &gitlab.UpdateIssueOptions{}
-
-			needsUpdate := false
-			if existingIssue.Title != flat.Title {
-				updateOpts.Title = &flat.Title
-				needsUpdate = true
-			}
-
-			if existingIssue.Description != flat.Description {
-				updateOpts.Description = &flat.Description
-				needsUpdate = true
-			}
-
-			// if existingIssue.UpdatedAt != flat.UpdatedAt {
-			// 	updateOpts.UpdatedAt = flat.UpdatedAt
-			// 	needsUpdate = true
-			// }
-
-			// INFO: Re-Opening/Closing issues will show up as updates in other GitLab issues (thus their updated_at will change)
-			if existingIssue.State != "closed" && flat.Status == "closed" {
-				stateEvent := "close"
-				updateOpts.StateEvent = &stateEvent
-				needsUpdate = true
-			}
-
-			if existingIssue.State == "closed" && flat.Status != "closed" {
-				stateEvent := "reopen"
-				updateOpts.StateEvent = &stateEvent
-				needsUpdate = true
-			}
-
-			if existingIssue.Milestone == nil || existingIssue.Milestone.ID != flat.MileStoneID {
-				if flat.MileStoneID != 0 {
-					updateOpts.MilestoneID = &flat.MileStoneID
-					needsUpdate = true
-				}
-			}
-
-			if needsUpdate {
-				slog.Debug("Updating existing issue", "ID", flat.ID, "Title", flat.Title)
-
-				updateOpts.UpdatedAt = flat.UpdatedAt
-				_, err := client.UpdateIssue(config.GitLab.ProjectID, flat.ID, updateOpts)
-				if err != nil {
-					fmt.Print(updateOpts)
-					return fmt.Errorf("failed to update issue %d: %w", flat.ID, err)
-				}
-			} else {
-				slog.Debug("No updates needed for existing issue", "ID", flat.ID, "Title", flat.Title)
-			}
-
+			result.Completed++
+			continue
 		}
 
+		slog.Debug("Issue already exists, checking for updates", "ID", flat.ID, "Title", flat.Title)
+
+		updateOpts := &gitlab.UpdateIssueOptions{}
+		needsUpdate := false
+		if existingIssue.Title != flat.Title {
+			updateOpts.Title = &flat.Title
+			needsUpdate = true
+		}
+		if existingIssue.Description != flat.Description {
+			updateOpts.Description = &flat.Description
+			needsUpdate = true
+		}
+		// INFO: Re-Opening/Closing issues will show up as updates in other GitLab issues (thus their updated_at will change)
+		if existingIssue.State != "closed" && flat.Status == "closed" {
+			stateEvent := "close"
+			updateOpts.StateEvent = &stateEvent
+			needsUpdate = true
+		}
+		if existingIssue.State == "closed" && flat.Status != "closed" {
+			stateEvent := "reopen"
+			updateOpts.StateEvent = &stateEvent
+			needsUpdate = true
+		}
+		if existingIssue.Milestone == nil || existingIssue.Milestone.ID != flat.MileStoneID {
+			if flat.MileStoneID != 0 {
+				updateOpts.MilestoneID = &flat.MileStoneID
+				needsUpdate = true
+			}
+		}
+
+		if needsUpdate && config.DryRun {
+			slog.Info("dry-run: would update issue", "ID", flat.ID, "Title", flat.Title)
+			result.Completed++
+			continue
+		}
+		if needsUpdate {
+			slog.Debug("Updating existing issue", "ID", flat.ID, "Title", flat.Title)
+			updateOpts.UpdatedAt = flat.UpdatedAt
+			if _, err := client.UpdateIssue(config.GitLab.ProjectID, flat.ID, updateOpts); err != nil {
+				result.fail(err)
+				return result, fmt.Errorf("failed to update issue %d: %w", flat.ID, err)
+			}
+		} else {
+			slog.Debug("No updates needed for existing issue", "ID", flat.ID, "Title", flat.Title)
+		}
+		result.Completed++
 	}
-	return nil
+
+	return result, nil
 }
 
 type IssueRaw struct {

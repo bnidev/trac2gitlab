@@ -3,6 +3,7 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,16 +32,18 @@ type attachmentMapping struct {
 	Attachments []attachmentRecord `json:"attachments"`
 }
 
-func ImportAttachments(client *gitlab.Client, cfg *config.Config) error {
+func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error) {
+	var result Result
+
 	project, err := client.GetProject(cfg.GitLab.ProjectID)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	mappingPath := filepath.Join(cfg.ExportOptions.ExportDir, "trac-attachments.json")
 	mapping, err := loadAttachmentMapping(mappingPath)
 	if err != nil {
-		return err
+		return result, err
 	}
 	index := make(map[string]attachmentRecord, len(mapping.Attachments))
 	for _, record := range mapping.Attachments {
@@ -49,21 +52,29 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) error {
 
 	tickets, err := utils.ReadFilesFromDir(filepath.Join(cfg.ExportOptions.ExportDir, "tickets"), ".json", os.Stderr)
 	if err != nil {
-		return fmt.Errorf("read tickets: %w", err)
+		return result, fmt.Errorf("read tickets: %w", err)
 	}
 
+	parsed := make([]ticketWithAttachments, 0, len(tickets))
 	for _, data := range tickets {
 		var ticket ticketWithAttachments
 		if err := json.Unmarshal(data, &ticket); err != nil {
-			return fmt.Errorf("parse ticket: %w", err)
+			return result, fmt.Errorf("parse ticket: %w", err)
 		}
-		if len(ticket.Attachments) == 0 {
-			continue
-		}
+		parsed = append(parsed, ticket)
+		result.Total += len(ticket.Attachments)
+	}
 
+	for _, ticket := range parsed {
 		for _, attachment := range ticket.Attachments {
 			key := attachmentKey(ticket.ID, attachment.Filename)
 			if _, ok := index[key]; ok {
+				result.Completed++
+				continue
+			}
+			if cfg.DryRun {
+				slog.Info("dry-run: would upload attachment", "ticket", ticket.ID, "filename", attachment.Filename)
+				result.Completed++
 				continue
 			}
 
@@ -71,15 +82,18 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) error {
 			path := filepath.Join(cfg.ExportOptions.ExportDir, "tickets", "attachments", fmt.Sprintf("%d", ticket.ID), filename)
 			file, err := os.Open(path)
 			if err != nil {
-				return fmt.Errorf("open attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
+				result.fail(err)
+				return result, fmt.Errorf("open attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
 			}
 			uploaded, err := client.UploadProjectMarkdown(project.ID, file, filename)
 			closeErr := file.Close()
 			if err != nil {
-				return fmt.Errorf("upload attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
+				result.fail(err)
+				return result, fmt.Errorf("upload attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, err)
 			}
 			if closeErr != nil {
-				return fmt.Errorf("close attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, closeErr)
+				result.fail(closeErr)
+				return result, fmt.Errorf("close attachment %q for ticket %d: %w", attachment.Filename, ticket.ID, closeErr)
 			}
 
 			record := attachmentRecord{
@@ -91,18 +105,25 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) error {
 			mapping.Attachments = append(mapping.Attachments, record)
 			index[key] = record
 			if err := saveAttachmentMapping(mappingPath, mapping); err != nil {
-				return err
+				result.fail(err)
+				return result, err
 			}
+			result.Completed++
 		}
 
 		section := attachmentSection(ticket, index)
 		if section == "" {
 			continue
 		}
+		if cfg.DryRun {
+			slog.Info("dry-run: would link attachments", "ticket", ticket.ID)
+			continue
+		}
 
 		issue, err := client.GetIssue(project.ID, ticket.ID)
 		if err != nil {
-			return fmt.Errorf("get issue %d: %w", ticket.ID, err)
+			result.fail(err)
+			return result, fmt.Errorf("get issue %d: %w", ticket.ID, err)
 		}
 		if strings.Contains(issue.Description, section) {
 			continue
@@ -110,18 +131,20 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) error {
 
 		changedAt, err := time.Parse(time.RFC3339, ticket.TimeChanged)
 		if err != nil {
-			return fmt.Errorf("parse TimeChanged for ticket %d: %w", ticket.ID, err)
+			result.fail(err)
+			return result, fmt.Errorf("parse TimeChanged for ticket %d: %w", ticket.ID, err)
 		}
 		description := issue.Description + section
 		if _, err := client.UpdateIssue(project.ID, ticket.ID, &gitlab.UpdateIssueOptions{
 			Description: &description,
 			UpdatedAt:   &changedAt,
 		}); err != nil {
-			return fmt.Errorf("link attachments on issue %d: %w", ticket.ID, err)
+			result.fail(err)
+			return result, fmt.Errorf("link attachments on issue %d: %w", ticket.ID, err)
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 func attachmentKey(ticketID int64, filename string) string {
