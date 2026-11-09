@@ -4,6 +4,10 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 
 [![CI](https://github.com/bnidev/trac2gitlab/actions/workflows/ci.yaml/badge.svg)](https://github.com/bnidev/trac2gitlab/actions/workflows/ci.yaml)
 
+## Documentation
+
+User documentation lives in [docs/](docs/index.md): getting started,
+configuration, CLI reference, migration flow, and limitations.
 
 ## Current Features
 
@@ -33,7 +37,7 @@ A tool to synchronize tickets, wikis and related data from a Trac instance (via 
 ### Importer
 
 - Preserve ticket history in GitLab issues (not supported by the GitLab API)
-- Map Trac fields to GitLab labels
+- Import Trac description history as notes
 - Preserve wiki page history in GitLab wikis (not supported by the GitLab API)
 
 ## Compatibility
