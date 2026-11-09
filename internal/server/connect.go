@@ -62,7 +62,7 @@ func (s *Server) handleTestTrac(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := client.ValidateExpectedMethods(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		writeJSON(w, map[string]any{"ok": false, "message": withAuthHint(err.Error(), "check TRAC_USER/TRAC_PASSWORD in .env")})
 		return
 	}
 	msg := "expected methods ok"
@@ -88,7 +88,7 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := client.ValidateGitLab(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		writeJSON(w, map[string]any{"ok": false, "message": withAuthHint(err.Error(), "check GITLAB_TOKEN in .env")})
 		return
 	}
 	ref := any(cfg.GitLab.ProjectID)
@@ -103,6 +103,14 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true, "message": "project " + project.PathWithNamespace})
 }
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
+// withAuthHint appends a credential hint to authentication failures.
+func withAuthHint(msg, hint string) string {
+	if strings.Contains(msg, "401") || strings.Contains(msg, "Unauthorized") || strings.Contains(msg, "unauthorized") {
+		return msg + " — " + hint
+	}
+	return msg
+}
+
 // connectionForm is the editable, non-secret part of a project's connection.
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
 type connectionForm struct {
