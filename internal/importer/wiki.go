@@ -122,6 +122,7 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		result.Completed++
 	}
 
+	warnUnresolvedChangesets(refs)
 	return result, nil
 }
 
