@@ -276,16 +276,19 @@ func checkAttachments(report *Report, client *gitlab.Client, cfg *config.Config,
 		report.fail("list wiki pages: %v", err)
 		return
 	}
-	contentByTitle := make(map[string]string, len(wikis))
+	contentBySlug := make(map[string]string, len(wikis))
 	for _, page := range wikis {
-		contentByTitle[strings.ToLower(page.Title)] = page.Content
+		contentBySlug[strings.ToLower(page.Slug)] = page.Content
 	}
-	for _, file := range wikiExpected {
+	for name, file := range wikiExpected {
+		if cfg.ExportOptions.WikiExcluded(name, file.Meta.Author) {
+			continue
+		}
 		report.Attachments.Expected += len(file.Meta.Attachments)
 	}
 	report.Attachments.Found += len(wikiMap.Attachments)
 	for _, record := range wikiMap.Attachments {
-		if linkPresent(contentByTitle[strings.ToLower(record.Page)], record) {
+		if linkPresent(contentBySlug[strings.ToLower(record.Page)], record) {
 			report.Attachments.Matched++
 		} else {
 			report.warn("wiki attachment %q not linked on %q", record.Filename, record.Page)
@@ -299,19 +302,24 @@ func checkWiki(report *Report, client *gitlab.Client, cfg *config.Config, projec
 		report.fail("scan wiki export: %v", err)
 		return
 	}
-	report.Wiki.Expected = len(pages)
 	wikis, err := client.ListWikis(projectID, false)
 	if err != nil {
 		report.fail("list wiki pages: %v", err)
 		return
 	}
 	report.Wiki.Found = len(wikis)
-	byTitle := make(map[string]bool, len(wikis))
+	// Match by slug: GitLab humanizes the title but keeps the slug equal to the
+	// Trac page name.
+	bySlug := make(map[string]bool, len(wikis))
 	for _, page := range wikis {
-		byTitle[strings.ToLower(page.Title)] = true
+		bySlug[strings.ToLower(page.Slug)] = true
 	}
-	for name := range pages {
-		if byTitle[strings.ToLower(name)] {
+	for name, page := range pages {
+		if cfg.ExportOptions.WikiExcluded(name, page.Meta.Author) {
+			continue
+		}
+		report.Wiki.Expected++
+		if bySlug[strings.ToLower(name)] {
 			report.Wiki.Matched++
 		} else {
 			report.Wiki.Failed++
@@ -371,14 +379,12 @@ func countComments(tickets []importer.IssueRaw) int {
 	count := 0
 	for _, ticket := range tickets {
 		for _, comment := range ticket.Comments {
-			if comment.OldValue == nil || comment.Time.IsZero() {
+			if comment.Time.IsZero() {
 				continue
 			}
-			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || importer.IsChangesetComment(body) {
-				continue
+			if _, ok := importer.CommentBody(comment); ok {
+				count++
 			}
-			count++
 		}
 	}
 	return count
