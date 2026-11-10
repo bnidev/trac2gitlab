@@ -75,7 +75,20 @@ Never ask the user to paste secrets into chat. They go into
    `mappings/users.yaml` already exists, the command refuses to overwrite;
    merge manually instead.
 
-6. **Propose identities.** For each author, ask the user for the GitLab
+6. **Offer to exclude Trac's own documentation.** Trac ships its manual as wiki
+   pages created by the system account at install time; they are almost never
+   wanted in the target. The `discover` output lists that author — commonly
+   `trac`, but sometimes `admin` or the installer's name — and its pages are all
+   version 1 with no edit comment. If such pages exist, ask the user whether to
+   keep them out, and if so add to `migration.yaml`:
+   ```yaml
+   export_options:
+     wiki_exclude_authors: [trac]
+   ```
+   Never exclude silently and never guess the username: confirm it with the user
+   or from a page's metadata. Leaving it empty migrates every page.
+
+7. **Propose identities.** For each author, ask the user for the GitLab
    username. Write the result to `mappings/users.yaml`:
    ```yaml
    users:
@@ -91,14 +104,14 @@ Never ask the user to paste secrets into chat. They go into
    Match on any of `trac_username`, `trac_display_name`, `trac_email`,
    `hg_author`. Never invent a mapping.
 
-7. **Validate identities.** Run:
+8. **Validate identities.** Run:
    ```bash
    trac2gitlab users validate --project-dir projects/<name> --check-gitlab
    ```
    If the GitLab token is not available yet, run without `--check-gitlab` and
    record that ID resolution is pending.
 
-8. **Report.** Summarise counts, unresolved users, and the next step
+9. **Report.** Summarise counts, unresolved users, and the next step
    (`migration-preflight`). Record warnings; do not hide them.
 
 ## 4. Outputs
