@@ -48,6 +48,9 @@ func ExportTicketFields(client *trac.Client, config *config.Config) error {
 	}
 
 	filename := filepath.Join(config.ExportOptions.ExportDir, "ticket-fields.json")
+	if err := os.MkdirAll(config.ExportOptions.ExportDir, 0755); err != nil {
+		return fmt.Errorf("failed to create export directory: %w", err)
+	}
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
