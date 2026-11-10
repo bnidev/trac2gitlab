@@ -37,6 +37,14 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	if err != nil {
 		return result, err
 	}
+	// Skip excluded pages here too, so a re-export that leaves stale files
+	// behind still honours the current config.
+	for name, page := range pages {
+		if cfg.ExportOptions.WikiExcluded(name, page.Meta.Author) {
+			slog.Info("Skipping excluded wiki page", "page", name, "author", page.Meta.Author)
+			delete(pages, name)
+		}
+	}
 	result.Total = len(pages)
 	if len(pages) == 0 {
 		return result, nil
