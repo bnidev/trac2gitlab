@@ -4,7 +4,26 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bnidev/trac2gitlab/internal/importer"
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
+
+func TestCountComments(t *testing.T) {
+	str := func(s string) *string { return &s }
+	at := time.Date(2022, 11, 22, 16, 37, 2, 0, time.UTC)
+	tickets := []importer.IssueRaw{{
+		Comments: []trac.ChangeLogEntry{
+			{Time: at, OldValue: str("1"), NewValue: str("a real comment")}, // counted
+			{Time: at, OldValue: str("2")},                                  // marker, no text
+			{Time: at, NewValue: str("In [changeset:abc] by x")},            // changeset ref
+			{OldValue: str("3"), NewValue: str("no time")},                  // zero time
+		},
+	}}
+	if got := countComments(tickets); got != 1 {
+		t.Fatalf("countComments = %d, want 1", got)
+	}
+}
 
 func TestVerdict(t *testing.T) {
 	r := &Report{}

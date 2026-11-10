@@ -85,7 +85,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 			if comment.Time.IsZero() {
 				continue
 			}
-			if _, ok := commentBody(comment); ok {
+			if _, ok := CommentBody(comment); ok {
 				result.Total++
 				continue
 			}
@@ -100,7 +100,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 			if comment.Time.IsZero() {
 				continue
 			}
-			body, ok := commentBody(comment)
+			body, ok := CommentBody(comment)
 			if !ok {
 				continue
 			}
@@ -177,10 +177,10 @@ func IsChangesetComment(body string) bool {
 		strings.Contains(body, `class="changeset"`)
 }
 
-// commentBody returns the text of a Trac changelog comment entry. Trac puts the
+// CommentBody returns the text of a Trac changelog comment entry. Trac puts the
 // comment number in OldValue and the text in NewValue; an entry with no text is
 // a field-change marker (e.g. "Description: modified"), not a comment.
-func commentBody(c trac.ChangeLogEntry) (string, bool) {
+func CommentBody(c trac.ChangeLogEntry) (string, bool) {
 	if c.NewValue == nil {
 		return "", false
 	}

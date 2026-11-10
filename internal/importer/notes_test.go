@@ -24,7 +24,7 @@ func TestCommentBody(t *testing.T) {
 		{"changeset ref", trac.ChangeLogEntry{NewValue: str("In [changeset:abc] by x")}, "", false},
 	}
 	for _, tc := range cases {
-		got, ok := commentBody(tc.c)
+		got, ok := CommentBody(tc.c)
 		if got != tc.want || ok != tc.ok {
 			t.Errorf("%s: commentBody = (%q,%v), want (%q,%v)", tc.name, got, ok, tc.want, tc.ok)
 		}
@@ -114,7 +114,7 @@ func TestParseTicketComments(t *testing.T) {
 	if ticket.ID != 1 || len(ticket.Comments) != 1 || ticket.Comments[0].Author != "jdoe" {
 		t.Fatalf("ticket = %+v", ticket)
 	}
-	if body, ok := commentBody(ticket.Comments[0]); !ok || body != "hello" {
+	if body, ok := CommentBody(ticket.Comments[0]); !ok || body != "hello" {
 		t.Fatalf("commentBody = (%q,%v), want (hello,true)", body, ok)
 	}
 }
