@@ -9,8 +9,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
+
+func TestWikiBySlug(t *testing.T) {
+	pages := []*gitlab.Wiki{
+		{Slug: "local-dev-setup", Title: "local dev setup"},
+		{Slug: "WikiStart", Title: "WikiStart"},
+	}
+	m := wikiBySlug(pages)
+	if m["local-dev-setup"] == nil {
+		t.Fatal("dashed page must match by slug, not the humanized title")
+	}
+	if m["wikistart"] == nil {
+		t.Fatal("slug lookup must be case-insensitive")
+	}
+}
 
 func TestWikiContent(t *testing.T) {
 	meta := trac.WikiPage{
