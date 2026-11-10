@@ -122,8 +122,7 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			result.Completed++
 		}
 
-		section := attachmentSection(ticket, index)
-		if section == "" {
+		if len(ticket.Attachments) == 0 {
 			continue
 		}
 		if cfg.DryRun {
@@ -137,6 +136,7 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			slog.Error("Skipping attachment links", "ticket", ticket.ID, "errorMsg", err)
 			continue
 		}
+		section := attachmentSection(ticket, index, referencedAttachments(issue.Description))
 		description := resolveAttachmentRefs(issue.Description, ticket, index) + section
 		if description == issue.Description {
 			continue
@@ -197,9 +197,26 @@ func resolveAttachmentRefs(description string, ticket ticketWithAttachments, ind
 	return description
 }
 
-func attachmentSection(ticket ticketWithAttachments, index map[string]attachmentRecord) string {
+// referencedAttachments returns the attachment filenames referenced inline in a
+// description (attachment:"file" or [[Image(file, width)]]), so they are not
+// listed again in the attachments section.
+func referencedAttachments(description string) map[string]bool {
+	refs := make(map[string]bool)
+	for _, m := range reAttachmentRef.FindAllStringSubmatch(description, -1) {
+		refs[m[1]] = true
+	}
+	for _, m := range reImageMacro.FindAllStringSubmatch(description, -1) {
+		refs[strings.TrimSpace(m[1])] = true
+	}
+	return refs
+}
+
+func attachmentSection(ticket ticketWithAttachments, index map[string]attachmentRecord, skip map[string]bool) string {
 	var lines []string
 	for _, attachment := range ticket.Attachments {
+		if skip[attachment.Filename] {
+			continue
+		}
 		record, ok := index[attachmentKey(ticket.ID, attachment.Filename)]
 		if !ok {
 			continue

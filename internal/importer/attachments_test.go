@@ -31,7 +31,7 @@ func TestAttachmentSection(t *testing.T) {
 		attachmentKey(1, "a.png"): {TicketID: 1, Filename: "a.png", Markdown: "![a](/uploads/a.png)"},
 		attachmentKey(1, "b.pdf"): {TicketID: 1, Filename: "b.pdf", URL: "/uploads/b.pdf"},
 	}
-	section := attachmentSection(ticket, index)
+	section := attachmentSection(ticket, index, nil)
 	for _, want := range []string{"## Attachments", "![a](/uploads/a.png)", "[b.pdf](/uploads/b.pdf)", "uploaded by jdoe on 2022-11-22"} {
 		if !strings.Contains(section, want) {
 			t.Errorf("section missing %q\n%s", want, section)
@@ -41,8 +41,35 @@ func TestAttachmentSection(t *testing.T) {
 
 func TestAttachmentSectionEmpty(t *testing.T) {
 	ticket := ticketWithAttachments{ID: 1, Attachments: []trac.Attachment{{Filename: "a.png"}}}
-	if got := attachmentSection(ticket, map[string]attachmentRecord{}); got != "" {
+	if got := attachmentSection(ticket, map[string]attachmentRecord{}, nil); got != "" {
 		t.Fatalf("expected empty section, got %q", got)
+	}
+}
+
+func TestReferencedAttachments(t *testing.T) {
+	refs := referencedAttachments(`see attachment:"a.png" and [[Image(b.png, 400)]] plus [[Image(c.png)]]`)
+	for _, name := range []string{"a.png", "b.png", "c.png"} {
+		if !refs[name] {
+			t.Errorf("referencedAttachments missing %q: %v", name, refs)
+		}
+	}
+	if len(refs) != 3 {
+		t.Fatalf("referencedAttachments = %v", refs)
+	}
+}
+
+func TestAttachmentSectionSkipsReferenced(t *testing.T) {
+	ticket := ticketWithAttachments{ID: 1, Attachments: []trac.Attachment{{Filename: "a.png"}, {Filename: "b.pdf"}}}
+	index := map[string]attachmentRecord{
+		attachmentKey(1, "a.png"): {TicketID: 1, Filename: "a.png", URL: "/uploads/a.png"},
+		attachmentKey(1, "b.pdf"): {TicketID: 1, Filename: "b.pdf", URL: "/uploads/b.pdf"},
+	}
+	section := attachmentSection(ticket, index, map[string]bool{"a.png": true})
+	if strings.Contains(section, "a.png") {
+		t.Errorf("inline-referenced a.png should not be listed again: %s", section)
+	}
+	if !strings.Contains(section, "b.pdf") {
+		t.Errorf("unreferenced b.pdf should still be listed: %s", section)
 	}
 }
 
