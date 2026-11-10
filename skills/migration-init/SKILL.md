@@ -11,7 +11,6 @@ and GitLab.
 - Project name (required; `^[a-z0-9][a-z0-9-]*$`).
 - Trac URL (required).
 - GitLab project path, e.g. `group/project` (required).
-- Mercurial clone URL(s) (optional here; used by `hg-to-gitlab`).
 
 Never ask the user to paste secrets into chat. They go into
 `projects/<name>/.env`.
@@ -32,12 +31,7 @@ Never ask the user to paste secrets into chat. They go into
    gitlab:
      base_url: <gitlab-url>
      project: <group/project>
-   mercurial:
-     repositories:
-       - name: main
-         clone_url: <hg-clone-url>
    ```
-   The engine ignores `mercurial`; `hg-to-gitlab` uses it.
 
    By default every Trac wiki page is migrated, including Trac's own shipped
    documentation (the TracGuide set). Those pages stay authored by the Trac

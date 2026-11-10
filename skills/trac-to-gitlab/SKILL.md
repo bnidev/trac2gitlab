@@ -12,8 +12,9 @@ engine does that.
   accepted by the user.
 - `mappings/users.yaml` passed `trac2gitlab users validate --check-gitlab`.
 - `projects/<name>/migration.yaml` and `.env` are present.
-- If changeset references should point at Git commits,
-  `mappings/hg-changesets.json` exists from `hg-to-gitlab`.
+- Optional: `mappings/hg-changesets.json` is present if changeset references
+  should point at Git commits. It is produced outside this tool (an hg→git
+  conversion); trac2gitlab only consumes it.
 - The target project is fresh, or the user explicitly accepted the offset.
 
 Do not start if preflight is `BLOCKED` or `NOT READY`.
