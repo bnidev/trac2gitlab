@@ -46,6 +46,13 @@ func (r *Jobs) Start(project, kind string, fn func(j *Job) error) (*Job, error) 
 			return nil, fmt.Errorf("a %s job is already running for this project", j.Kind)
 		}
 	}
+	// Keep only the latest job per project: drop this project's finished
+	// jobs so the registry does not grow for the process lifetime.
+	for id, j := range r.byID {
+		if j.Project == project && j.Status != "running" {
+			delete(r.byID, id)
+		}
+	}
 	r.seq++
 	job := &Job{ID: fmt.Sprintf("%s-%d", kind, r.seq), Kind: kind, Project: project, Status: "running", StartedAt: time.Now().UTC()}
 	job.append(kind + " started")

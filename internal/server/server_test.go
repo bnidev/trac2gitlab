@@ -273,6 +273,33 @@ func TestJobsConflictAndCompletion(t *testing.T) {
 	}
 }
 
+func TestJobsKeepsOnlyLatestPerProject(t *testing.T) {
+	r := NewJobs()
+	start := func() {
+		if _, err := r.Start("proj", "export", func(j *Job) error { return nil }); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			if j := r.Latest("proj"); j != nil && j.Status == "completed" {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("job did not complete; got %+v", r.Latest("proj"))
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	start()
+	start()
+	r.mu.Lock()
+	n := len(r.byID)
+	r.mu.Unlock()
+	if n != 1 {
+		t.Fatalf("expected 1 retained job, got %d", n)
+	}
+}
+
 func TestRunEndpointsRejectMissingConfig(t *testing.T) {
 	srv, err := New(t.TempDir(), nil)
 	if err != nil {
