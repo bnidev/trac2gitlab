@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -37,7 +38,7 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 	fmt.Printf("Importing milestones for project: %s (ID: %d)\n", project.Name, project.ID)
 
 	// Import milestones from exported Trac data
-	milestones, err := utils.ReadFilesFromDir("data/milestones", ".json", os.Stderr)
+	milestones, err := utils.ReadFilesFromDir(filepath.Join(config.ExportOptions.ExportDir, "milestones"), ".json", os.Stderr)
 	if err != nil {
 		return fmt.Errorf("failed to read milestones from directory: %w", err)
 	}
