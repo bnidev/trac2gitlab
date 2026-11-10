@@ -2,15 +2,22 @@ package exporter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
+
+// errWikiPageExcluded signals that a page was skipped on purpose, so the caller
+// does not treat it as a failure.
+var errWikiPageExcluded = errors.New("wiki page excluded")
 
 // ExportWiki exports wiki pages from Trac and saves them as Markdown files
 func ExportWiki(client *trac.Client, config *config.Config) error {
@@ -37,6 +44,7 @@ func ExportWiki(client *trac.Client, config *config.Config) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var firstErr error
+	skipped := 0
 
 	for pageIndex, pageName := range pages {
 		wg.Add(1)
@@ -45,7 +53,14 @@ func ExportWiki(client *trac.Client, config *config.Config) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			if err := exportWikiPage(client, wikiDir, pName, idx, len(pages), config.ExportOptions.IncludeAttachments); err != nil {
+			err := exportWikiPage(client, wikiDir, pName, idx, len(pages), config)
+			if errors.Is(err, errWikiPageExcluded) {
+				mu.Lock()
+				skipped++
+				mu.Unlock()
+				return
+			}
+			if err != nil {
 				mu.Lock()
 				if firstErr == nil {
 					firstErr = err
@@ -60,14 +75,35 @@ func ExportWiki(client *trac.Client, config *config.Config) error {
 		return firstErr
 	}
 
-	slog.Info("Wiki export completed", "count", len(pages))
+	slog.Info("Wiki export completed", "count", len(pages)-skipped, "excluded", skipped)
 	return nil
 }
 
-func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, totalPages int, includeAttachments bool) error {
+// wikiExcluded reports whether a page should be skipped per export_options.
+// Names may be globs; authors match the latest revision's author.
+func wikiExcluded(name, author string, opts config.ExportOptions) bool {
+	for _, pattern := range opts.WikiExclude {
+		if ok, err := path.Match(pattern, name); err == nil && ok {
+			return true
+		}
+	}
+	for _, exclude := range opts.WikiExcludeAuthors {
+		if strings.EqualFold(strings.TrimSpace(exclude), strings.TrimSpace(author)) {
+			return true
+		}
+	}
+	return false
+}
+
+func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, totalPages int, config *config.Config) error {
 	wikiMeta, err := client.GetWikiPageInfo(pageName)
 	if err != nil {
 		return fmt.Errorf("failed to get wiki page info for %q: %w", pageName, err)
+	}
+
+	if wikiExcluded(pageName, wikiMeta.Author, config.ExportOptions) {
+		slog.Info("Skipping excluded wiki page", "page", pageName, "author", wikiMeta.Author)
+		return errWikiPageExcluded
 	}
 
 	slog.Debug("Exporting wiki page", "current", pageIndex+1, "total", totalPages, "page", pageName)
@@ -133,7 +169,7 @@ func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, to
 	}
 
 	// Export attachments once per page
-	if len(wikiMeta.Attachments) > 0 && includeAttachments {
+	if len(wikiMeta.Attachments) > 0 && config.ExportOptions.IncludeAttachments {
 		slog.Debug("Exporting attachments for wiki page", "page", pageName, "count", len(wikiMeta.Attachments))
 
 		attachmentsDir := filepath.Join(wikiDir, "attachments", pageName)

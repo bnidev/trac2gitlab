@@ -77,6 +77,11 @@ type ExportOptions struct {
 	AdditionalTicketFields []string `yaml:"additional_ticket_fields"`
 	IncludeUsers           bool     `yaml:"include_users"`
 	ExportDir              string   `yaml:"export_dir"`
+	// Wiki pages to skip during export. Names may be globs (path.Match).
+	// WikiExcludeAuthors skips a page whose latest author matches (e.g. the
+	// Trac system account that creates the default documentation pages).
+	WikiExclude        []string `yaml:"wiki_exclude"`
+	WikiExcludeAuthors []string `yaml:"wiki_exclude_authors"`
 }
 
 // ImportOptions holds the options for importing data into GitLab
