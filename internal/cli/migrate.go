@@ -58,7 +58,7 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 					return err
 				}
 				result, err := fn()
-				run.FinishPhase(name, result.Total, result.Completed, result.Failed, result.Errors)
+				run.FinishPhase(name, result.Total, result.Completed, result.Failed, result.Skipped, result.Errors)
 				if err != nil {
 					failed = true
 					run.Status = state.StatusFailed
@@ -67,6 +67,9 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 					failed = true
 					run.Status = state.StatusFailed
 					slog.Warn("Phase completed with errors", "phase", name, "failed", result.Failed)
+				}
+				if result.Skipped > 0 {
+					slog.Warn("Phase skipped content", "phase", name, "skipped", result.Skipped)
 				}
 				if saveErr := run.Save(statePath); saveErr != nil {
 					return saveErr

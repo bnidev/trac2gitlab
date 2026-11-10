@@ -22,6 +22,7 @@ type Phase struct {
 	Total     int      `yaml:"total"`
 	Completed int      `yaml:"completed"`
 	Failed    int      `yaml:"failed"`
+	Skipped   int      `yaml:"skipped,omitempty"`
 	Errors    []string `yaml:"errors,omitempty"`
 }
 
@@ -86,7 +87,7 @@ func (m *Migration) StartPhase(name string) {
 	m.Phases[name] = &Phase{Status: StatusRunning}
 }
 
-func (m *Migration) FinishPhase(name string, total, completed, failed int, errs []string) {
+func (m *Migration) FinishPhase(name string, total, completed, failed, skipped int, errs []string) {
 	phase := m.Phases[name]
 	if phase == nil {
 		phase = &Phase{}
@@ -95,6 +96,7 @@ func (m *Migration) FinishPhase(name string, total, completed, failed int, errs 
 	phase.Total = total
 	phase.Completed = completed
 	phase.Failed = failed
+	phase.Skipped = skipped
 	phase.Errors = errs
 	if failed > 0 {
 		phase.Status = StatusFailed

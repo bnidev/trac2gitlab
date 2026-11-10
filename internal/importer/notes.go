@@ -85,10 +85,13 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 			if comment.Time.IsZero() {
 				continue
 			}
-			if _, ok := commentBody(comment); !ok {
+			if _, ok := commentBody(comment); ok {
+				result.Total++
 				continue
 			}
-			result.Total++
+			if skippedContent(comment) {
+				result.Skipped++
+			}
 		}
 	}
 
@@ -186,6 +189,12 @@ func commentBody(c trac.ChangeLogEntry) (string, bool) {
 		return "", false
 	}
 	return body, true
+}
+
+// skippedContent reports whether a comment entry carries text we deliberately
+// do not migrate: an auto-generated changeset reference.
+func skippedContent(c trac.ChangeLogEntry) bool {
+	return c.NewValue != nil && strings.TrimSpace(*c.NewValue) != "" && IsChangesetComment(*c.NewValue)
 }
 
 func noteKey(ticketID int64, createdAt time.Time, author, body string) string {
