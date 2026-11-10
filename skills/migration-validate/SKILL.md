@@ -29,6 +29,10 @@ Read-only against both systems.
    | Attachments | | | | |
    | Wiki | | | | |
 
+   Notes and attachments are matched through `data/trac-notes.json` and
+   `data/trac-attachments.json`; if those mapping files are missing the `Found`
+   counts read 0. Expected wiki counts respect `export_options.wiki_exclude`.
+
    Then list errors and warnings.
 
 3. **Interpret.**

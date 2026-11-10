@@ -25,7 +25,10 @@ Do not start if preflight is `BLOCKED` or `NOT READY`.
    trac2gitlab export --project-dir projects/<name>
    ```
    Read-only against Trac. If the source changed since the last export, this
-   keeps the import consistent with it.
+   keeps the import consistent with it. It exits non-zero if any phase fails;
+   fix the cause and rerun. Changing `export_options` (for example
+   `wiki_exclude`) takes effect only on re-export; the wiki phase logs
+   `excluded=N`.
 
 2. **Dry run.**
    ```bash

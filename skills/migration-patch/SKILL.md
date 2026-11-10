@@ -64,6 +64,10 @@ cannot set an author, so this is a one-time server-side step using
 - Do not paste the block into a shared channel; it contains only IDs, but still
   treat it as operational output.
 - Unresolved authors are skipped and keep their `Originally by ...` footer.
+- Only issues and notes are reassigned. System notes (label changes,
+  cross-reference "mentioned in …" notes, and the description update that
+  appends the attachments section) keep the migration account, because they are
+  actions the migration performed. See `docs/limitations.md`.
 
 ## 6. Failure / retry
 
