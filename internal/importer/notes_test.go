@@ -5,7 +5,31 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/bnidev/trac2gitlab/pkg/trac"
 )
+
+func TestCommentBody(t *testing.T) {
+	str := func(s string) *string { return &s }
+	cases := []struct {
+		name string
+		c    trac.ChangeLogEntry
+		want string
+		ok   bool
+	}{
+		{"real comment", trac.ChangeLogEntry{OldValue: str("3"), NewValue: str("Fixed on prod")}, "Fixed on prod", true},
+		{"number-only marker", trac.ChangeLogEntry{OldValue: str("1")}, "", false},
+		{"empty entry", trac.ChangeLogEntry{}, "", false},
+		{"blank text", trac.ChangeLogEntry{NewValue: str("   ")}, "", false},
+		{"changeset ref", trac.ChangeLogEntry{NewValue: str("In [changeset:abc] by x")}, "", false},
+	}
+	for _, tc := range cases {
+		got, ok := commentBody(tc.c)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("%s: commentBody = (%q,%v), want (%q,%v)", tc.name, got, ok, tc.want, tc.ok)
+		}
+	}
+}
 
 func TestIsChangesetComment(t *testing.T) {
 	cases := map[string]bool{
@@ -69,12 +93,15 @@ func TestLoadMissingNoteMapping(t *testing.T) {
 }
 
 func TestParseTicketComments(t *testing.T) {
-	data := []byte(`{"ID": 1, "Comments": [{"Time": "2022-11-22T16:37:02Z", "Author": "jdoe", "Field": "comment", "OldValue": "hello", "Permanent": 1}]}`)
+	data := []byte(`{"ID": 1, "Comments": [{"Time": "2022-11-22T16:37:02Z", "Author": "jdoe", "Field": "comment", "OldValue": "1", "NewValue": "hello", "Permanent": 1}]}`)
 	var ticket ticketWithComments
 	if err := json.Unmarshal(data, &ticket); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if ticket.ID != 1 || len(ticket.Comments) != 1 || ticket.Comments[0].Author != "jdoe" {
 		t.Fatalf("ticket = %+v", ticket)
+	}
+	if body, ok := commentBody(ticket.Comments[0]); !ok || body != "hello" {
+		t.Fatalf("commentBody = (%q,%v), want (hello,true)", body, ok)
 	}
 }
