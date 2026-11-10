@@ -82,11 +82,10 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		}
 		parsed = append(parsed, ticket)
 		for _, comment := range ticket.Comments {
-			if comment.OldValue == nil || comment.Time.IsZero() {
+			if comment.Time.IsZero() {
 				continue
 			}
-			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || IsChangesetComment(body) {
+			if _, ok := commentBody(comment); !ok {
 				continue
 			}
 			result.Total++
@@ -95,11 +94,11 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 
 	for _, ticket := range parsed {
 		for i, comment := range ticket.Comments {
-			if comment.OldValue == nil || comment.Time.IsZero() {
+			if comment.Time.IsZero() {
 				continue
 			}
-			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || IsChangesetComment(body) {
+			body, ok := commentBody(comment)
+			if !ok {
 				continue
 			}
 
@@ -173,6 +172,20 @@ func IsChangesetComment(body string) bool {
 	return strings.HasPrefix(body, "In [changeset:") ||
 		strings.Contains(body, "#!CommitTicketReference") ||
 		strings.Contains(body, `class="changeset"`)
+}
+
+// commentBody returns the text of a Trac changelog comment entry. Trac puts the
+// comment number in OldValue and the text in NewValue; an entry with no text is
+// a field-change marker (e.g. "Description: modified"), not a comment.
+func commentBody(c trac.ChangeLogEntry) (string, bool) {
+	if c.NewValue == nil {
+		return "", false
+	}
+	body := strings.TrimSpace(*c.NewValue)
+	if body == "" || IsChangesetComment(body) {
+		return "", false
+	}
+	return body, true
 }
 
 func noteKey(ticketID int64, createdAt time.Time, author, body string) string {
