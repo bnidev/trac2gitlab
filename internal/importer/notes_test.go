@@ -31,6 +31,19 @@ func TestCommentBody(t *testing.T) {
 	}
 }
 
+func TestSkippedContent(t *testing.T) {
+	str := func(s string) *string { return &s }
+	if !skippedContent(trac.ChangeLogEntry{NewValue: str("In [changeset:abc] by x")}) {
+		t.Error("changeset reference should be counted as skipped")
+	}
+	if skippedContent(trac.ChangeLogEntry{OldValue: str("1")}) {
+		t.Error("number-only marker is not skipped content")
+	}
+	if skippedContent(trac.ChangeLogEntry{NewValue: str("a real comment")}) {
+		t.Error("a real comment is not skipped content")
+	}
+}
+
 func TestIsChangesetComment(t *testing.T) {
 	cases := map[string]bool{
 		"In [changeset:abc123] by someone":           true,

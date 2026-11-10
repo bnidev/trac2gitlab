@@ -9,7 +9,7 @@ func TestStateRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state", "migration.yaml")
 	m := New(true)
 	m.StartPhase("issues")
-	m.FinishPhase("issues", 11, 10, 1, []string{"issue #4 failed"})
+	m.FinishPhase("issues", 11, 10, 1, 0, []string{"issue #4 failed"})
 	m.Finish()
 	if err := m.Save(path); err != nil {
 		t.Fatalf("save: %v", err)
@@ -44,8 +44,17 @@ func TestLoadMissingState(t *testing.T) {
 func TestFinishPhaseSuccess(t *testing.T) {
 	m := New(false)
 	m.StartPhase("wiki")
-	m.FinishPhase("wiki", 3, 3, 0, nil)
+	m.FinishPhase("wiki", 3, 3, 0, 0, nil)
 	if m.Phases["wiki"].Status != StatusCompleted {
 		t.Fatalf("phase = %+v", m.Phases["wiki"])
+	}
+}
+
+func TestFinishPhaseSkipped(t *testing.T) {
+	m := New(false)
+	m.StartPhase("notes")
+	m.FinishPhase("notes", 25, 25, 0, 16, nil)
+	if got := m.Phases["notes"].Skipped; got != 16 {
+		t.Fatalf("skipped = %d, want 16", got)
 	}
 }
