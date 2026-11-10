@@ -54,15 +54,6 @@ TRAC_PASSWORD=...
 the environment. Existing environment variables win over `.env`. Secrets never
 go into `migration.yaml`.
 
-## Run the readiness check
-
-```bash
-./trac2gitlab preflight --project-dir projects/my-project
-```
-
-This is read-only. It writes `projects/my-project/reports/preflight.md` and
-blocks on a role below Owner/Administrator or an unreachable source.
-
 ## Export from Trac
 
 ```bash
@@ -80,7 +71,18 @@ This writes tickets, comments, wiki pages, and attachments under
 ```
 
 Review the authors and map each to a GitLab username. Keep unknowns as
-`action: unresolved`. Validate with:
+`action: unresolved`.
+
+## Run the readiness check
+
+```bash
+./trac2gitlab preflight --project-dir projects/my-project
+```
+
+This is read-only. It writes `projects/my-project/reports/preflight.md` and
+blocks on a role below Owner/Administrator, an unreachable source, or a missing
+`mappings/users.yaml` (written by the previous two steps). Then resolve the
+identities against GitLab:
 
 ```bash
 ./trac2gitlab users validate --project-dir projects/my-project --check-gitlab

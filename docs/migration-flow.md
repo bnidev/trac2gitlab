@@ -1,7 +1,7 @@
 # Migration flow
 
 ```text
-init → preflight → export → migrate --dry-run → migrate --execute → patch → validate
+init → export → discover → preflight → users validate → migrate --dry-run → migrate --execute → patch → validate
 ```
 
 ## Project layout
