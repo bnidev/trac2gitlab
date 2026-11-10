@@ -72,3 +72,22 @@ func TestLoadMissingAttachmentMapping(t *testing.T) {
 		t.Fatalf("expected empty mapping, got %+v", out.Attachments)
 	}
 }
+
+func TestResolveAttachmentRefs(t *testing.T) {
+	ticket := ticketWithAttachments{
+		ID:          7,
+		Attachments: []trac.Attachment{{Filename: "sketch.png"}, {Filename: "shot.jpg"}},
+	}
+	index := map[string]attachmentRecord{
+		attachmentKey(7, "sketch.png"): {TicketID: 7, Filename: "sketch.png", URL: "https://gl/uploads/1"},
+		attachmentKey(7, "shot.jpg"):   {TicketID: 7, Filename: "shot.jpg", URL: "https://gl/uploads/2"},
+	}
+	in := `see attachment:"sketch.png" and [[Image(shot.jpg, 400)]] but not attachment:"nope.txt"`
+	want := `see [sketch.png](https://gl/uploads/1) and ![shot.jpg](https://gl/uploads/2) but not attachment:"nope.txt"`
+	if got := resolveAttachmentRefs(in, ticket, index); got != want {
+		t.Errorf("resolveAttachmentRefs:\n got %q\nwant %q", got, want)
+	}
+	if got := resolveAttachmentRefs(want, ticket, index); got != want {
+		t.Errorf("resolveAttachmentRefs not idempotent: %q", got)
+	}
+}
