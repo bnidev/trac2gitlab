@@ -81,6 +81,12 @@ func ResolveProject(root, name string) string {
 	if name == "" {
 		return projects[0].Dir
 	}
+	// Reject anything that is not a plain project name (no slashes or dots),
+	// so ?project=../../x cannot escape root. LoadProject then fails on the
+	// returned root, which the handlers already turn into a 400.
+	if !projectNameRe.MatchString(name) {
+		return root
+	}
 	for _, p := range projects {
 		if p.Name == name {
 			return p.Dir

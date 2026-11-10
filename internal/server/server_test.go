@@ -19,6 +19,24 @@ func TestListProjectsEmpty(t *testing.T) {
 	}
 }
 
+func TestResolveProjectRejectsTraversal(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "demo"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "demo", "migration.yaml"), []byte("general:\n  log_level: info\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"../evil", "a/b", "..", ".", "/etc"} {
+		if got := ResolveProject(root, name); got != root {
+			t.Fatalf("ResolveProject(%q) = %q, want root %q", name, got, root)
+		}
+	}
+	if got := ResolveProject(root, "demo"); got != filepath.Join(root, "demo") {
+		t.Fatalf("valid name resolved to %q", got)
+	}
+}
+
 func TestStatusMissingStateIsPending(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "demo"), 0755); err != nil {
