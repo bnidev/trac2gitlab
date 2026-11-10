@@ -39,6 +39,16 @@ Never ask the user to paste secrets into chat. They go into
    ```
    The engine ignores `mercurial`; `hg-to-gitlab` uses it.
 
+   By default every Trac wiki page is migrated, including Trac's own shipped
+   documentation (the TracGuide set). Those pages stay authored by the Trac
+   system user, so to keep them out add:
+   ```yaml
+   export_options:
+     wiki_exclude_authors: [trac]   # pages whose latest author is the system user
+     wiki_exclude: ["Trac*"]        # names or globs (path.Match)
+   ```
+   Empty config migrates everything. See `docs/configuration.md`.
+
 3. **Credentials.** Create `projects/<name>/.env` from `.env.example` and tell
    the user to fill in:
    ```text
