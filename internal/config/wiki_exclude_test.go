@@ -1,13 +1,9 @@
-package exporter
+package config
 
-import (
-	"testing"
-
-	"github.com/bnidev/trac2gitlab/internal/config"
-)
+import "testing"
 
 func TestWikiExcluded(t *testing.T) {
-	opts := config.ExportOptions{
+	opts := ExportOptions{
 		WikiExclude:        []string{"Trac*", "SandBox"},
 		WikiExcludeAuthors: []string{"trac"},
 	}
@@ -26,14 +22,14 @@ func TestWikiExcluded(t *testing.T) {
 		{"TitleIndex", "bob", false}, // neither rule
 	}
 	for _, tc := range cases {
-		if got := wikiExcluded(tc.name, tc.author, opts); got != tc.want {
-			t.Errorf("wikiExcluded(%q, %q) = %v, want %v", tc.name, tc.author, got, tc.want)
+		if got := opts.WikiExcluded(tc.name, tc.author); got != tc.want {
+			t.Errorf("WikiExcluded(%q, %q) = %v, want %v", tc.name, tc.author, got, tc.want)
 		}
 	}
 }
 
 func TestWikiExcludedEmptyConfigExcludesNothing(t *testing.T) {
-	if wikiExcluded("TracGuide", "trac", config.ExportOptions{}) {
+	if (ExportOptions{}).WikiExcluded("TracGuide", "trac") {
 		t.Fatal("empty config must not exclude any page")
 	}
 }

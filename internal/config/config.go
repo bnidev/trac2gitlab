@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -82,6 +83,22 @@ type ExportOptions struct {
 	// Trac system account that creates the default documentation pages).
 	WikiExclude        []string `yaml:"wiki_exclude"`
 	WikiExcludeAuthors []string `yaml:"wiki_exclude_authors"`
+}
+
+// WikiExcluded reports whether a wiki page should be skipped per these options.
+// Names may be globs (path.Match); authors match the latest revision's author.
+func (o ExportOptions) WikiExcluded(name, author string) bool {
+	for _, pattern := range o.WikiExclude {
+		if ok, err := path.Match(pattern, name); err == nil && ok {
+			return true
+		}
+	}
+	for _, exclude := range o.WikiExcludeAuthors {
+		if strings.EqualFold(strings.TrimSpace(exclude), strings.TrimSpace(author)) {
+			return true
+		}
+	}
+	return false
 }
 
 // ImportOptions holds the options for importing data into GitLab

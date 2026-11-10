@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -79,29 +77,13 @@ func ExportWiki(client *trac.Client, config *config.Config) error {
 	return nil
 }
 
-// wikiExcluded reports whether a page should be skipped per export_options.
-// Names may be globs; authors match the latest revision's author.
-func wikiExcluded(name, author string, opts config.ExportOptions) bool {
-	for _, pattern := range opts.WikiExclude {
-		if ok, err := path.Match(pattern, name); err == nil && ok {
-			return true
-		}
-	}
-	for _, exclude := range opts.WikiExcludeAuthors {
-		if strings.EqualFold(strings.TrimSpace(exclude), strings.TrimSpace(author)) {
-			return true
-		}
-	}
-	return false
-}
-
 func exportWikiPage(client *trac.Client, wikiDir, pageName string, pageIndex, totalPages int, config *config.Config) error {
 	wikiMeta, err := client.GetWikiPageInfo(pageName)
 	if err != nil {
 		return fmt.Errorf("failed to get wiki page info for %q: %w", pageName, err)
 	}
 
-	if wikiExcluded(pageName, wikiMeta.Author, config.ExportOptions) {
+	if config.ExportOptions.WikiExcluded(pageName, wikiMeta.Author) {
 		slog.Info("Skipping excluded wiki page", "page", pageName, "author", wikiMeta.Author)
 		return errWikiPageExcluded
 	}
