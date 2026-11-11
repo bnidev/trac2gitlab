@@ -67,7 +67,27 @@
         </div>
         <div id="connVerdict" class="verdict" hidden></div>
       </section>
-      <div class="pager"><span></span><button class="btn" data-goto="preflight">Next: Preflight →</button></div>
+      <div class="pager"><span></span><button class="btn" data-goto="export">Next: Export →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-export">
+      <section class="card">
+        <div class="card-h mono">EXPORT · data/ (read-only vs Trac)</div>
+        <div class="row"><button id="runExport" class="btn">Run export</button><span class="muted">pulls tickets, wiki, users into data/</span></div>
+        <div id="exportVerdict" class="verdict">—</div>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="connect">← Back</button><button class="btn" data-goto="identities">Next: Identities →</button></div>
+    </div>
+
+    <div class="step-pane" id="pane-identities">
+      <section class="card">
+        <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>
+        <div class="row"><button id="runDiscover" class="btn">Discover authors</button><span class="muted">reads data/ · writes mappings/users.yaml once, never overwrites</span></div>
+        <div class="row"><button id="validateUsers" class="btn">Validate</button><span class="muted" id="usersHint">local parse only · --check-gitlab stays in the CLI</span></div>
+        <div id="users"></div>
+        <div id="usersVerdict" class="verdict">—</div>
+      </section>
+      <div class="pager"><button class="btn ghost" data-goto="export">← Back</button><button class="btn" data-goto="preflight">Next: Preflight →</button></div>
     </div>
 
     <div class="step-pane" id="pane-preflight">
@@ -82,25 +102,6 @@
         <div id="verdict" class="verdict">—</div>
         <details><summary class="mono muted">raw report</summary><pre id="report" class="mono">select a project…</pre></details>
       </section>
-      <div class="pager"><button class="btn ghost" data-goto="connect">← Back</button><button class="btn" data-goto="identities">Next: Identities →</button></div>
-    </div>
-
-    <div class="step-pane" id="pane-identities">
-      <section class="card">
-        <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>
-        <div class="row"><button id="validateUsers" class="btn">Validate</button><span class="muted" id="usersHint">local parse only · --check-gitlab stays in the CLI</span></div>
-        <div id="users"></div>
-        <div id="usersVerdict" class="verdict">—</div>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="preflight">← Back</button><button class="btn" data-goto="export">Next: Export →</button></div>
-    </div>
-
-    <div class="step-pane" id="pane-export">
-      <section class="card">
-        <div class="card-h mono">EXPORT · data/ (read-only vs Trac)</div>
-        <div class="row"><button id="runExport" class="btn">Run export</button><span class="muted">pulls tickets, wiki, users into data/</span></div>
-        <div id="exportVerdict" class="verdict">—</div>
-      </section>
       <div class="pager"><button class="btn ghost" data-goto="identities">← Back</button><button class="btn" data-goto="dryrun">Next: Dry-run →</button></div>
     </div>
 
@@ -111,7 +112,7 @@
         <div id="jobStatus" class="verdict">—</div>
         <pre id="jobLog" class="mono">no job yet</pre>
       </section>
-      <div class="pager"><button class="btn ghost" data-goto="export">← Back</button><button class="btn" data-goto="execute">Next: Execute →</button></div>
+      <div class="pager"><button class="btn ghost" data-goto="preflight">← Back</button><button class="btn" data-goto="execute">Next: Execute →</button></div>
     </div>
 
     <div class="step-pane" id="pane-execute">

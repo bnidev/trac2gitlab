@@ -8,14 +8,14 @@ import (
 
 // Job tracks one background run (export, dry-run) for a project directory.
 type Job struct {
-	ID        string    `json:"id"`
-	Kind      string    `json:"kind"`
-	Project   string    `json:"project"`
-	Status    string    `json:"status"` // running | completed | failed
-	StartedAt time.Time `json:"startedAt"`
+	ID        string     `json:"id"`
+	Kind      string     `json:"kind"`
+	Project   string     `json:"project"`
+	Status    string     `json:"status"` // running | completed | failed
+	StartedAt time.Time  `json:"startedAt"`
 	EndedAt   *time.Time `json:"endedAt,omitempty"`
-	Error     string    `json:"error,omitempty"`
-	Log       []string  `json:"log"`
+	Error     string     `json:"error,omitempty"`
+	Log       []string   `json:"log"`
 }
 
 func (j *Job) append(line string) {

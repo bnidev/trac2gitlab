@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -102,6 +103,7 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]any{"ok": true, "message": "project " + project.PathWithNamespace})
 }
+
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
 // withAuthHint appends a credential hint to authentication failures.
 func withAuthHint(msg, hint string) string {
@@ -114,22 +116,22 @@ func withAuthHint(msg, hint string) string {
 // connectionForm is the editable, non-secret part of a project's connection.
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
 type connectionForm struct {
-	TracBaseURL  string `json:"tracBaseUrl"`
-	TracRPCPath  string `json:"tracRpcPath"`
-	TracUser     string `json:"tracUser,omitempty"`
-	TracPassword string `json:"tracPassword,omitempty"`
-	TracGateUser string `json:"tracGateUser,omitempty"`
-	TracGatePass string `json:"tracGatePass,omitempty"`
+	TracBaseURL    string `json:"tracBaseUrl"`
+	TracRPCPath    string `json:"tracRpcPath"`
+	TracUser       string `json:"tracUser,omitempty"`
+	TracPassword   string `json:"tracPassword,omitempty"`
+	TracGateUser   string `json:"tracGateUser,omitempty"`
+	TracGatePass   string `json:"tracGatePass,omitempty"`
 	GitlabGateUser string `json:"gitlabGateUser,omitempty"`
 	GitlabGatePass string `json:"gitlabGatePass,omitempty"`
-	GitLabURL    string `json:"gitlabUrl"`
-	GitLabToken  string `json:"gitlabToken,omitempty"`
-	GitLabProj   string `json:"gitlabProject"`
-	HasEnv       bool   `json:"hasEnv"`
-	HasTracPass  bool   `json:"hasTracPassword"`
-	HasTracGate  bool   `json:"hasTracGatePassword"`
-	HasGitlabGate bool  `json:"hasGitlabGatePassword"`
-	HasToken     bool   `json:"hasGitlabToken"`
+	GitLabURL      string `json:"gitlabUrl"`
+	GitLabToken    string `json:"gitlabToken,omitempty"`
+	GitLabProj     string `json:"gitlabProject"`
+	HasEnv         bool   `json:"hasEnv"`
+	HasTracPass    bool   `json:"hasTracPassword"`
+	HasTracGate    bool   `json:"hasTracGatePassword"`
+	HasGitlabGate  bool   `json:"hasGitlabGatePassword"`
+	HasToken       bool   `json:"hasGitlabToken"`
 }
 
 // handleGetConnection returns the connection form without secrets.
@@ -145,18 +147,18 @@ func (s *Server) handleGetConnection(w http.ResponseWriter, r *http.Request) {
 		project = strconv.Itoa(cfg.GitLab.ProjectID)
 	}
 	writeJSON(w, connectionForm{
-		TracBaseURL: cfg.Trac.BaseURL,
-		TracRPCPath: cfg.Trac.RPCPath,
-		TracUser:     cfg.Trac.Username,
-		TracGateUser: cfg.Trac.HtaccessUser,
+		TracBaseURL:    cfg.Trac.BaseURL,
+		TracRPCPath:    cfg.Trac.RPCPath,
+		TracUser:       cfg.Trac.Username,
+		TracGateUser:   cfg.Trac.HtaccessUser,
 		GitlabGateUser: cfg.GitLab.HtaccessUser,
-		GitLabURL:   cfg.GitLab.BaseURL,
-		GitLabProj:  project,
-		HasEnv:      hasFile(dir, ".env"),
-		HasTracPass: cfg.Trac.Password != "",
-		HasTracGate: cfg.Trac.HtaccessPass != "",
-		HasGitlabGate: cfg.GitLab.HtaccessPass != "",
-		HasToken:    cfg.GitLab.Token != "",
+		GitLabURL:      cfg.GitLab.BaseURL,
+		GitLabProj:     project,
+		HasEnv:         hasFile(dir, ".env"),
+		HasTracPass:    cfg.Trac.Password != "",
+		HasTracGate:    cfg.Trac.HtaccessPass != "",
+		HasGitlabGate:  cfg.GitLab.HtaccessPass != "",
+		HasToken:       cfg.GitLab.Token != "",
 	})
 }
 
@@ -170,31 +172,36 @@ func (s *Server) handlePutConnection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON connection form", http.StatusBadRequest)
 		return
 	}
-	cfg, err := config.LoadProject(dir)
-	if err != nil {
+	if _, err := config.LoadProject(dir); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(form.TracBaseURL) != "" {
-		cfg.Trac.BaseURL = strings.TrimRight(strings.TrimSpace(form.TracBaseURL), "/")
+	// Only the connection keys the form owns are written back. Re-encoding
+	// the loaded config would leak secrets merged from .env (gitlab.token)
+	// and persist project-dir-joined paths (export_dir, users_file).
+	var updates []configUpdate
+	if v := strings.TrimSpace(form.TracBaseURL); v != "" {
+		updates = append(updates, configUpdate{[]string{"trac", "base_url"}, strings.TrimRight(v, "/")})
 	}
-	if strings.TrimSpace(form.TracRPCPath) != "" {
-		cfg.Trac.RPCPath = strings.TrimSpace(form.TracRPCPath)
+	if v := strings.TrimSpace(form.TracRPCPath); v != "" {
+		updates = append(updates, configUpdate{[]string{"trac", "rpc_path"}, v})
 	}
-	if strings.TrimSpace(form.GitLabURL) != "" {
-		cfg.GitLab.BaseURL = strings.TrimRight(strings.TrimSpace(form.GitLabURL), "/")
+	if v := strings.TrimSpace(form.GitLabURL); v != "" {
+		updates = append(updates, configUpdate{[]string{"gitlab", "base_url"}, strings.TrimRight(v, "/")})
 	}
 	proj := strings.TrimSpace(form.GitLabProj)
 	if proj != "" {
 		if id, err := strconv.Atoi(proj); err == nil {
-			cfg.GitLab.ProjectID = id
-			cfg.GitLab.Project = ""
+			updates = append(updates,
+				configUpdate{[]string{"gitlab", "project_id"}, id},
+				configUpdate{[]string{"gitlab", "project"}, ""})
 		} else {
-			cfg.GitLab.Project = proj
-			cfg.GitLab.ProjectID = 0
+			updates = append(updates,
+				configUpdate{[]string{"gitlab", "project"}, proj},
+				configUpdate{[]string{"gitlab", "project_id"}, 0})
 		}
 	}
-	if err := writeConfig(dir, &cfg); err != nil {
+	if err := writeConfig(dir, updates); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -243,19 +250,84 @@ func (s *Server) handlePutConnection(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-func writeConfig(dir string, cfg *config.Config) error {
+// configUpdate sets one scalar at a key path in migration.yaml.
+type configUpdate struct {
+	path  []string
+	value any
+}
+
+// writeConfig applies updates to the project's config file in place,
+// keeping every other key, comment and ordering untouched.
+func writeConfig(dir string, updates []configUpdate) error {
 	path := filepath.Join(dir, "migration.yaml")
 	if _, err := os.Stat(path); err != nil {
 		path = filepath.Join(dir, "config.yaml")
 	}
-	data, err := yaml.Marshal(cfg)
+	raw, err := os.ReadFile(path)
 	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	if doc.Kind == 0 {
+		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
+	}
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return fmt.Errorf("%s: top level is not a mapping", path)
+	}
+	for _, u := range updates {
+		var value yaml.Node
+		if err := value.Encode(u.value); err != nil {
+			return fmt.Errorf("encode %s: %w", strings.Join(u.path, "."), err)
+		}
+		if err := setYAMLKey(doc.Content[0], u.path, &value); err != nil {
+			return fmt.Errorf("%s: %w", path, err)
+		}
+	}
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&doc); err != nil {
 		return fmt.Errorf("encode config: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := enc.Close(); err != nil {
+		return fmt.Errorf("encode config: %w", err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
+}
+
+// setYAMLKey sets value at keys under mapping, creating nested mappings.
+func setYAMLKey(mapping *yaml.Node, keys []string, value *yaml.Node) error {
+	for i := 0; i < len(mapping.Content)-1; i += 2 {
+		if mapping.Content[i].Value != keys[0] {
+			continue
+		}
+		if len(keys) == 1 {
+			mapping.Content[i+1] = value
+			return nil
+		}
+		child := mapping.Content[i+1]
+		if child.Kind == yaml.ScalarNode && child.Tag == "!!null" {
+			*child = yaml.Node{Kind: yaml.MappingNode}
+		}
+		if child.Kind != yaml.MappingNode {
+			return fmt.Errorf("%s is not a mapping", keys[0])
+		}
+		return setYAMLKey(child, keys[1:], value)
+	}
+	key := &yaml.Node{Kind: yaml.ScalarNode, Value: keys[0]}
+	if len(keys) == 1 {
+		mapping.Content = append(mapping.Content, key, value)
+		return nil
+	}
+	child := &yaml.Node{Kind: yaml.MappingNode}
+	mapping.Content = append(mapping.Content, key, child)
+	return setYAMLKey(child, keys[1:], value)
 }
 
 // mergeDotEnv upserts keys into a .env file, preserving comments, ordering
