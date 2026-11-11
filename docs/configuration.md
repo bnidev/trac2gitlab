@@ -127,7 +127,9 @@ trac2gitlab users validate --project-dir projects/my-project --check-gitlab
 - `mappings/wiki-pages.json`: `{"pages": {"Trac Page": "gitlab-slug"}}` (optional)
 
 Missing files are allowed. Ticket references then remain unchanged and
-changeset references are left as-is.
+changeset references are left as-is. `hg-changesets.json` is produced outside
+trac2gitlab (from an hg→git conversion); the engine only consumes it, and
+changeset references inside notes cannot be corrected after the first import.
 
 ## Labels
 
