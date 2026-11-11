@@ -16,10 +16,6 @@
   <aside class="sidebar">
     <div class="side-h mono">MIGRATION</div>
     <nav id="steps"></nav>
-    <div class="side-h mono">PROJECTS</div>
-    <nav id="projects">
-      {{range .Projects}}<button class="proj-btn mono" data-name="{{.Name}}">{{.Name}}</button>{{else}}<div class="empty">No projects in <span class="mono">{{.Root}}</span> yet.<br><br>Create one:<br><code class="mono">trac2gitlab init --project-dir projects/demo</code><br><br>Or serve a single existing dir:<br><code class="mono">serve --projects-root .</code></div>{{end}}
-    </nav>
     <div class="hint">Steps gate each other: preflight first, execute only when READY. Only an explicit execute writes to GitLab.</div>
   </aside>
   <main class="center">
@@ -28,8 +24,48 @@
 
     <div class="step-pane" id="pane-connect">
       <section class="card">
-        <div class="card-h mono">PROJECT · migration.yaml + .env</div>
+        <div class="card-h mono">PROJECT · pick or create</div>
+        <div class="row"><input id="newProject" class="input mono" placeholder="new-project-name" maxlength="64">
+          <button id="createProject" class="btn">Create</button></div>
+        <div id="projectList" class="row wrap"></div>
         <div id="projectInfo" class="muted">select a project…</div>
+      </section>
+      <section class="card">
+        <div class="card-h mono">CONNECTION · migration.yaml + .env (secrets never shown)</div>
+        <div class="subcard">
+          <div class="row spread"><span class="mono muted">TRAC · XML-RPC source</span><span class="row"><button id="testTrac" class="btn ghost">Test Trac</button><button id="saveTrac" class="btn">Save Trac</button></span></div>
+          <div class="form">
+            <label>Trac URL<input id="fTracUrl" class="input mono" placeholder="https://trac.example.com"></label>
+            <label>RPC path<input id="fTracRpc" class="input mono" placeholder="/xmlrpc"></label>
+            <label>Trac user<input id="fTracUser" class="input mono" placeholder="" autocomplete="off"></label>
+            <label>Trac password<input id="fTracPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            <label class="checkline"><input type="checkbox" id="tracHtaccess"> Trac sits behind htaccess</label>
+          </div>
+          <div class="htaccess" id="tracHtaccessFields" hidden>
+            <div class="form">
+              <label>htaccess user<input id="fTracHtUser" class="input mono" placeholder="" autocomplete="off"></label>
+              <label>htaccess password<input id="fTracHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            </div>
+          </div>
+          <div id="tracTest" class="verdict" hidden></div>
+        </div>
+        <div class="subcard">
+          <div class="row spread"><span class="mono muted">GITLAB · API target</span><span class="row"><button id="testGitlab" class="btn ghost">Test GitLab</button><button id="saveGitlab" class="btn">Save GitLab</button></span></div>
+          <div class="form">
+            <label>GitLab URL<input id="fGitlabUrl" class="input mono" placeholder="https://gitlab.example.com"></label>
+            <label>GitLab token<input id="fGitlabToken" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            <label>GitLab project<input id="fGitlabProj" class="input mono" placeholder="group/project or numeric id"></label>
+            <label class="checkline"><input type="checkbox" id="gitlabHtaccess"> GitLab sits behind htaccess</label>
+          </div>
+          <div class="htaccess" id="gitlabHtaccessFields" hidden>
+            <div class="form">
+              <label>htaccess user<input id="fGitlabHtUser" class="input mono" placeholder="" autocomplete="off"></label>
+              <label>htaccess password<input id="fGitlabHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
+            </div>
+          </div>
+          <div id="gitlabTest" class="verdict" hidden></div>
+        </div>
+        <div id="connVerdict" class="verdict" hidden></div>
       </section>
       <div class="pager"><span></span><button class="btn" data-goto="preflight">Next: Preflight →</button></div>
     </div>
@@ -82,7 +118,7 @@
       <section class="card">
         <div class="card-h mono">EXECUTE · writes to GitLab (gated)</div>
         <div class="row"><label class="confirm"><input type="checkbox" id="confirmExecute"> <span>I confirm writing to GitLab. No force, no undo.</span></label></div>
-        <div class="row"><button id="runExecute" class="btn danger" disabled>Execute --execute</button><span class="muted">requires READY preflight + dry-run review</span></div>
+        <div class="row"><button id="runExecute" class="btn danger" disabled>Execute --execute</button><span class="muted">requires READY preflight + your explicit confirmation</span></div>
         <div id="executeVerdict" class="verdict">—</div>
       </section>
       <div class="pager"><button class="btn ghost" data-goto="dryrun">← Back</button><button class="btn" data-goto="finish">Next: Patch + Validate →</button></div>

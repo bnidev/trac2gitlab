@@ -3,15 +3,25 @@ package gitlab
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
-// Client represents a GitLab API client
-type Client struct {
-	git *gitlab.Client
+// basicAuthTransport adds an HTTP site gate (e.g. htaccess) in front of the
+// API. It composes with token auth, which uses its own header.
+type basicAuthTransport struct {
+	username string
+	password string
+	base     http.RoundTripper
+}
+
+func (t *basicAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.SetBasicAuth(t.username, t.password)
+	return t.base.RoundTrip(clone)
 }
 
 // NewGitLabClient creates a new GitLab API client.
@@ -20,11 +30,27 @@ func NewGitLabClient(config *config.Config) (*Client, error) {
 
 	slog.Debug("Creating GitLab API client", "url", url)
 
-	git, err := gitlab.NewClient(config.GitLab.Token, gitlab.WithBaseURL(url))
+	opts := []gitlab.ClientOptionFunc{gitlab.WithBaseURL(url)}
+	if config.GitLab.HtaccessUser != "" {
+		opts = append(opts, gitlab.WithHTTPClient(&http.Client{
+			Transport: &basicAuthTransport{
+				username: config.GitLab.HtaccessUser,
+				password: config.GitLab.HtaccessPass,
+				base:     http.DefaultTransport,
+			},
+		}))
+	}
+
+	git, err := gitlab.NewClient(config.GitLab.Token, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{git: git}, nil
+}
+
+// Client represents a GitLab API client
+type Client struct {
+	git *gitlab.Client
 }
 
 // Version represents the GitLab version information.

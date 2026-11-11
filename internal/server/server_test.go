@@ -9,11 +9,31 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bnidev/trac2gitlab/internal/config"
 )
 
 func TestListProjectsEmpty(t *testing.T) {
 	if got := ListProjects(t.TempDir()); len(got) != 0 {
 		t.Fatalf("expected no projects, got %v", got)
+	}
+}
+
+func TestResolveProjectRejectsTraversal(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "demo"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "demo", "migration.yaml"), []byte("general:\n  log_level: info\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"../evil", "a/b", "..", ".", "/etc"} {
+		if got := ResolveProject(root, name); got != root {
+			t.Fatalf("ResolveProject(%q) = %q, want root %q", name, got, root)
+		}
+	}
+	if got := ResolveProject(root, "demo"); got != filepath.Join(root, "demo") {
+		t.Fatalf("valid name resolved to %q", got)
 	}
 }
 
@@ -97,6 +117,83 @@ func TestPatchAndValidateRejectMissingConfig(t *testing.T) {
 	}
 }
 
+func TestConnectEndpoints(t *testing.T) {
+	root := t.TempDir()
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post := func(name string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/projects", strings.NewReader(`{"name":"`+name+`"}`))
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := post("../evil"); rec.Code != http.StatusBadRequest {
+		t.Fatalf("path traversal status %d, want 400", rec.Code)
+	}
+	if rec := post("demo"); rec.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := post("demo"); rec.Code != http.StatusConflict {
+		t.Fatalf("duplicate status %d, want 409", rec.Code)
+	}
+	if !config.CheckConfigExists(filepath.Join(root, "demo")) {
+		t.Fatal("expected migration.yaml in new project")
+	}
+	get := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/api/project/connection?project=demo", nil)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := get(); rec.Code != http.StatusOK {
+		t.Fatalf("get connection status %d: %s", rec.Code, rec.Body.String())
+	} else {
+		var form map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &form); err != nil {
+			t.Fatal(err)
+		}
+		for _, k := range []string{"tracPassword", "gitlabToken", "tracGatePass", "gitlabGatePass"} {
+			if _, ok := form[k]; ok {
+				t.Fatalf("secret field %q leaked in GET response", k)
+			}
+		}
+	}
+	putBody := `{"tracBaseUrl":"https://trac.local","gitlabUrl":"https://gl.local","gitlabProject":"grp/proj","tracUser":"u","tracPassword":"p","tracGateUser":"gu","tracGatePass":"gp","gitlabGateUser":"hu","gitlabGatePass":"hp","gitlabToken":"t"}`
+	req := httptest.NewRequest("PUT", "/api/project/connection?project=demo", strings.NewReader(putBody))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("put connection status %d: %s", rec.Code, rec.Body.String())
+	}
+	yamlRaw, err := os.ReadFile(filepath.Join(root, "demo", "migration.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"\"p\"", "gitlabToken", "\"t\"", "TRAC_PASSWORD"} {
+		if strings.Contains(string(yamlRaw), secret) {
+			t.Fatalf("secret leaked into migration.yaml: %s", secret)
+		}
+	}
+	envRaw, err := os.ReadFile(filepath.Join(root, "demo", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"TRAC_URL=https://trac.local", "TRAC_USER=u", "TRAC_PASSWORD=p", "TRAC_HTACCESS_USER=gu", "TRAC_HTACCESS_PASSWORD=gp", "GITLAB_HTACCESS_USER=hu", "GITLAB_HTACCESS_PASSWORD=hp", "GITLAB_TOKEN=t", "GITLAB_PROJECT=grp/proj"} {
+		if !strings.Contains(string(envRaw), want) {
+			t.Fatalf("expected .env to contain %q, got:\n%s", want, envRaw)
+		}
+	}
+	st, err := os.Stat(filepath.Join(root, "demo", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0600 {
+		t.Fatalf(".env perm %o, want 600", st.Mode().Perm())
+	}
+}
+
 func TestExecuteGate(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "demo")
@@ -173,6 +270,33 @@ func TestJobsConflictAndCompletion(t *testing.T) {
 	}
 	if first.ID == "" {
 		t.Fatal("expected job id")
+	}
+}
+
+func TestJobsKeepsOnlyLatestPerProject(t *testing.T) {
+	r := NewJobs()
+	start := func() {
+		if _, err := r.Start("proj", "export", func(j *Job) error { return nil }); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			if j := r.Latest("proj"); j != nil && j.Status == "completed" {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("job did not complete; got %+v", r.Latest("proj"))
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	start()
+	start()
+	r.mu.Lock()
+	n := len(r.byID)
+	r.mu.Unlock()
+	if n != 1 {
+		t.Fatalf("expected 1 retained job, got %d", n)
 	}
 }
 

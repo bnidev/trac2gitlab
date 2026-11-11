@@ -81,12 +81,143 @@ async function loadProjectInfo(name) {
   el.innerHTML = rows.map(r => '<div class="kv"><span class="mono">' + r[0] + '</span><span>' + r[1] + '</span></div>').join("");
 }
 
+async function renderProjectList() {
+  const list = await getJSON("/api/projects");
+  const box = document.getElementById("projectList");
+  box.innerHTML = "";
+  if (!list || list.length === 0) {
+    box.innerHTML = '<span class="muted">No projects yet — create one above.</span>';
+    return list;
+  }
+  for (const p of list) {
+    const b = document.createElement("button");
+    b.className = "proj-pick mono" + (p.name === window.currentProject ? " sel" : "");
+    b.textContent = p.name;
+    b.addEventListener("click", () => select(p.name));
+    box.appendChild(b);
+  }
+  return list;
+}
+
+async function createProject() {
+  const input = document.getElementById("newProject");
+  const name = input.value.trim();
+  const el = document.getElementById("connVerdict");
+  el.hidden = false;
+  if (!name) return;
+  try {
+    const res = await fetch("/api/projects", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name})});
+    if (!res.ok) throw new Error(await errText(res));
+    input.value = "";
+    el.textContent = "Project " + name + " created — now set its connection below.";
+    el.className = "verdict ok";
+    await renderProjectList();
+    await select(name);
+  } catch (e) {
+    el.textContent = "Create failed: " + e.message;
+    el.className = "verdict fail";
+  }
+}
+
+async function loadConnection(q) {
+  const body = await getJSON("/api/project/connection" + q);
+  document.getElementById("fTracUrl").value = body.tracBaseUrl || "";
+  document.getElementById("fTracRpc").value = body.tracRpcPath || "";
+  document.getElementById("fGitlabUrl").value = body.gitlabUrl || "";
+  document.getElementById("fGitlabProj").value = body.gitlabProject || "";
+  document.getElementById("fTracUser").value = body.tracUser || "";
+  document.getElementById("fTracHtUser").value = body.tracGateUser || "";
+  document.getElementById("fGitlabHtUser").value = body.gitlabGateUser || "";
+  const tracGate = !!body.tracGateUser || body.hasTracGatePassword;
+  const gitlabGate = !!body.gitlabGateUser || body.hasGitlabGatePassword;
+  document.getElementById("tracHtaccess").checked = tracGate;
+  document.getElementById("tracHtaccessFields").hidden = !tracGate;
+  document.getElementById("gitlabHtaccess").checked = gitlabGate;
+  document.getElementById("gitlabHtaccessFields").hidden = !gitlabGate;
+  document.getElementById("fTracPass").value = "";
+  document.getElementById("fTracPass").placeholder = body.hasTracPassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+  document.getElementById("fTracHtPass").value = "";
+  document.getElementById("fTracHtPass").placeholder = body.hasTracGatePassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+  document.getElementById("fGitlabHtPass").value = "";
+  document.getElementById("fGitlabHtPass").placeholder = body.hasGitlabGatePassword ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+  document.getElementById("fGitlabToken").value = "";
+  document.getElementById("fGitlabToken").placeholder = body.hasGitlabToken ? "stored ✓ — leave blank to keep" : "only sent, never shown";
+}
+
+async function testConnection(kind) {
+  const name = window.currentProject;
+  const el = document.getElementById(kind === "trac" ? "tracTest" : "gitlabTest");
+  if (!name) return;
+  el.hidden = false;
+  el.textContent = "Testing… (uses saved connection — save first)";
+  el.className = "verdict";
+  try {
+    const res = await fetch("/api/test/" + kind + "?project=" + encodeURIComponent(name), {method: "POST"});
+    if (!res.ok) throw new Error(await errText(res));
+    const body = await res.json();
+    el.textContent = body.message;
+    el.className = "verdict " + (body.ok ? "ok" : "fail");
+  } catch (e) {
+    const msg = e instanceof TypeError && e.message === "Failed to fetch"
+      ? "no response — is trac2gitlab serve still running?"
+      : e.message;
+    el.textContent = "Test failed: " + msg;
+    el.className = "verdict fail";
+  }
+}
+
+async function saveService(kind) {
+  const name = window.currentProject;
+  const el = document.getElementById(kind === "trac" ? "tracTest" : "gitlabTest");
+  el.hidden = false;
+  if (!name) {
+    el.textContent = "Select or create a project first.";
+    el.className = "verdict";
+    return;
+  }
+  const payload = kind === "trac" ? {
+    tracBaseUrl: document.getElementById("fTracUrl").value,
+    tracRpcPath: document.getElementById("fTracRpc").value,
+    tracUser: document.getElementById("fTracUser").value,
+    tracPassword: document.getElementById("fTracPass").value,
+    tracGateUser: document.getElementById("fTracHtUser").value,
+    tracGatePass: document.getElementById("fTracHtPass").value,
+  } : {
+    gitlabUrl: document.getElementById("fGitlabUrl").value,
+    gitlabToken: document.getElementById("fGitlabToken").value,
+    gitlabProject: document.getElementById("fGitlabProj").value,
+    gitlabGateUser: document.getElementById("fGitlabHtUser").value,
+    gitlabGatePass: document.getElementById("fGitlabHtPass").value,
+  };
+  el.textContent = "Saving…";
+  el.className = "verdict";
+  try {
+    const res = await fetch("/api/project/connection?project=" + encodeURIComponent(name), {
+      method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await errText(res));
+    for (const id of ["fTracPass", "fTracHtPass", "fGitlabToken", "fGitlabHtPass"]) {
+      document.getElementById(id).value = "";
+    }
+    await loadConnection("?project=" + encodeURIComponent(name));
+    el.textContent = (kind === "trac" ? "Trac" : "GitLab") + " connection saved to migration.yaml + .env.";
+    el.className = "verdict ok";
+  } catch (e) {
+    const msg = e instanceof TypeError && e.message === "Failed to fetch"
+      ? "no response — is trac2gitlab serve still running?"
+      : e.message;
+    el.textContent = "Save failed: " + msg;
+    el.className = "verdict fail";
+  }
+}
+
 async function select(name) {
-  document.querySelectorAll(".proj-btn").forEach(b => b.classList.toggle("sel", b.dataset.name === name));
-  document.getElementById("projLabel").textContent = "projects / " + name;
   window.currentProject = name;
+  document.getElementById("projLabel").textContent = "projects / " + name;
+  document.querySelectorAll(".proj-pick").forEach(b => b.classList.toggle("sel", b.textContent === name));
   await loadProjectInfo(name);
   const q = "?project=" + encodeURIComponent(name);
+  await loadConnection(q);
   const status = await getJSON("/api/status" + q);
   document.getElementById("status").textContent = JSON.stringify(status, null, 2);
   await loadCached(q, name);
@@ -351,6 +482,16 @@ async function runPreflight() {
 document.addEventListener("DOMContentLoaded", async () => {
   renderSteps();
   showStep("connect");
+  document.getElementById("createProject").addEventListener("click", createProject);
+  document.getElementById("saveTrac").addEventListener("click", () => saveService("trac"));
+  document.getElementById("saveGitlab").addEventListener("click", () => saveService("gitlab"));
+  document.getElementById("testTrac").addEventListener("click", () => testConnection("trac"));
+  document.getElementById("testGitlab").addEventListener("click", () => testConnection("gitlab"));
+  for (const [box, fields] of [["tracHtaccess", "tracHtaccessFields"], ["gitlabHtaccess", "gitlabHtaccessFields"]]) {
+    document.getElementById(box).addEventListener("change", (e) => {
+      document.getElementById(fields).hidden = !e.target.checked;
+    });
+  }
   document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showStep(b.dataset.goto)));
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);
@@ -369,6 +510,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("confirmExecute").addEventListener("change", (e) => {
     document.getElementById("runExecute").disabled = !e.target.checked;
   });
-  const first = document.querySelector(".proj-btn");
-  if (first) await select(first.dataset.name);
+  const list = await renderProjectList();
+  if (list && list[0]) await select(list[0].name);
 });

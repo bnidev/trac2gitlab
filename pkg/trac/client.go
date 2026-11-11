@@ -33,10 +33,14 @@ func NewTracClient(config *config.Config) (*Client, error) {
 	slog.Debug("Creating Trac XML-RPC client", "url", url)
 
 	var transport http.RoundTripper
-	if config.Trac.Username != "" {
+	username, password := config.Trac.Username, config.Trac.Password
+	if config.Trac.HtaccessUser != "" {
+		username, password = config.Trac.HtaccessUser, config.Trac.HtaccessPass
+	}
+	if username != "" {
 		transport = &basicAuthTransport{
-			username: config.Trac.Username,
-			password: config.Trac.Password,
+			username: username,
+			password: password,
 			base:     http.DefaultTransport,
 		}
 	}
