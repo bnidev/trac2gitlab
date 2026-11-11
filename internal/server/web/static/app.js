@@ -29,9 +29,9 @@ function setVerdict(el, verdict) {
 // ---- Step navigation ----
 const STEPS = [
   {id: "connect", n: 1, title: "Connect", sub: "Pick a migration project. Config lives in migration.yaml, secrets in .env — never shown here."},
-  {id: "preflight", n: 2, title: "Preflight", sub: "Read-only checks. No target mutation until READY."},
-  {id: "identities", n: 3, title: "Identities", sub: "Map Trac authors to GitLab users. Unresolved get an explicit footer."},
-  {id: "export", n: 4, title: "Export", sub: "Pull tickets, wiki and users from Trac into data/. Read-only vs Trac."},
+  {id: "export", n: 2, title: "Export", sub: "Pull tickets, wiki and users from Trac into data/. Read-only vs Trac."},
+  {id: "identities", n: 3, title: "Identities", sub: "Discover Trac authors from the export, then map them to GitLab users. Unresolved get an explicit footer."},
+  {id: "preflight", n: 4, title: "Preflight", sub: "Read-only checks, needs mappings/users.yaml. No target mutation until READY."},
   {id: "dryrun", n: 5, title: "Dry-run", sub: "Preview per-phase counts in state/migration.yaml. Nothing written to GitLab."},
   {id: "execute", n: 6, title: "Execute", sub: "Writes to GitLab. Requires READY preflight plus your explicit confirmation."},
   {id: "finish", n: 7, title: "Patch + Validate", sub: "Restore authors on the GitLab host, then compare export with target."},
@@ -269,7 +269,7 @@ async function loadUsers(q) {
   const body = await getJSON("/api/users" + q);
   if (!body.exists) {
     document.getElementById("users").innerHTML = "";
-    document.getElementById("usersVerdict").textContent = "No mappings/users.yaml — run: trac2gitlab discover --write-users mappings/users.yaml";
+    document.getElementById("usersVerdict").textContent = "No mappings/users.yaml yet — run the export, then press Discover authors";
     document.getElementById("usersVerdict").className = "verdict";
     return;
   }
@@ -281,6 +281,29 @@ async function loadUsers(q) {
   renderUsers(body.users);
   document.getElementById("usersVerdict").textContent = body.users.length + " entries loaded — press Validate";
   document.getElementById("usersVerdict").className = "verdict";
+}
+
+async function runDiscover() {
+  const btn = document.getElementById("runDiscover");
+  const name = window.currentProject;
+  if (!name) return;
+  const el = document.getElementById("usersVerdict");
+  btn.disabled = true;
+  btn.textContent = "Discovering…";
+  try {
+    const res = await fetch("/api/discover/run?project=" + encodeURIComponent(name), {method: "POST"});
+    if (!res.ok) throw new Error(await errText(res));
+    const body = await res.json();
+    await loadUsers("?project=" + encodeURIComponent(name));
+    el.textContent = "Wrote mappings/users.yaml: " + body.authors.length + " authors from " + body.tickets + " tickets, " + body.wiki_pages + " wiki pages. Fill in the GitLab usernames, then Validate.";
+    el.className = "verdict warn";
+  } catch (e) {
+    el.textContent = "Discover failed: " + e.message;
+    el.className = "verdict fail";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Discover authors";
+  }
 }
 
 async function validateUsers() {
@@ -495,6 +518,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => showStep(b.dataset.goto)));
   document.querySelectorAll(".proj-btn").forEach(b => b.addEventListener("click", () => select(b.dataset.name)));
   document.getElementById("runPreflight").addEventListener("click", runPreflight);
+  document.getElementById("runDiscover").addEventListener("click", runDiscover);
   document.getElementById("validateUsers").addEventListener("click", validateUsers);
   document.getElementById("runExport").addEventListener("click", runExport);
   document.getElementById("runDryRun").addEventListener("click", runDryRun);

@@ -394,3 +394,91 @@ func TestPreflightMissingReport(t *testing.T) {
 		t.Fatalf("status %d", rec.Code)
 	}
 }
+
+// TestPutConnectionKeepsSecretsAndPathsOut guards against re-encoding the
+// loaded config: that leaked GITLAB_TOKEN from .env into migration.yaml and
+// wrote project-dir-joined paths that double on the next load.
+func TestPutConnectionKeepsSecretsAndPathsOut(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	original := "# keep me\ngitlab:\n  base_url: https://old.local\n  api_path: /api/v4\nexport_options:\n  export_dir: data\n  wiki_exclude_authors: [trac]\nimport_options:\n  users_file: mappings/users.yaml\n"
+	if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte(original), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("GITLAB_TOKEN=secret-token\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("PUT", "/api/project/connection?project=demo", strings.NewReader(`{"gitlabProject":"42","tracBaseUrl":"https://trac.local/"}`))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("put connection status %d: %s", rec.Code, rec.Body.String())
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "migration.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	yamlText := string(raw)
+	for _, bad := range []string{"secret-token", "token:", dir} {
+		if strings.Contains(yamlText, bad) {
+			t.Fatalf("migration.yaml contains %q:\n%s", bad, yamlText)
+		}
+	}
+	for _, want := range []string{"# keep me", "export_dir: data", "users_file: mappings/users.yaml", "project_id: 42", "base_url: https://trac.local\n", "wiki_exclude_authors: [trac]", "  api_path: /api/v4"} {
+		if !strings.Contains(yamlText, want) {
+			t.Fatalf("migration.yaml missing %q:\n%s", want, yamlText)
+		}
+	}
+	cfg, err := config.LoadProject(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(dir, "data"); cfg.ExportOptions.ExportDir != want {
+		t.Fatalf("export dir = %q, want %q", cfg.ExportOptions.ExportDir, want)
+	}
+}
+
+func TestDiscoverRunWritesUsersOnce(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(dir, "data", "tickets"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte("export_options:\n  export_dir: data\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ticket := `{"ID":1,"Attributes":{"reporter":"jdoe","owner":"jane","description":"x","status":"closed"},"Comments":[],"Attachments":[]}`
+	if err := os.WriteFile(filepath.Join(dir, "data", "tickets", "ticket-1.json"), []byte(ticket), 0644); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/discover/run?project=demo", nil)
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := run(); rec.Code != http.StatusOK {
+		t.Fatalf("discover status %d: %s", rec.Code, rec.Body.String())
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "mappings", "users.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "jdoe") || !strings.Contains(string(raw), "unresolved") {
+		t.Fatalf("users.yaml = %s", raw)
+	}
+	if rec := run(); rec.Code != http.StatusConflict {
+		t.Fatalf("second discover status %d, want 409", rec.Code)
+	}
+}

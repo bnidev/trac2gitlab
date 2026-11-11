@@ -6,6 +6,7 @@ import (
 
 	"github.com/bnidev/trac2gitlab/internal/config"
 	"github.com/bnidev/trac2gitlab/internal/importer"
+	"github.com/bnidev/trac2gitlab/internal/pipeline"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 )
 
@@ -17,6 +18,10 @@ func (s *Server) handlePatch(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.LoadProject(dir)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := pipeline.ResolveProjectID(&cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	client, err := gitlab.NewGitLabClient(&cfg)

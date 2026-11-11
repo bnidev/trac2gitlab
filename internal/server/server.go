@@ -56,6 +56,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/preflight/run", s.handlePreflightRun)
 	s.mux.HandleFunc("GET /api/users", s.handleUsers)
 	s.mux.HandleFunc("POST /api/users/validate", s.handleUsersValidate)
+	s.mux.HandleFunc("POST /api/discover/run", s.handleDiscoverRun)
 	s.mux.HandleFunc("POST /api/export/run", s.handleExportRun)
 	s.mux.HandleFunc("POST /api/migrate/dry-run", s.handleDryRun)
 	s.mux.HandleFunc("POST /api/migrate/execute", s.handleExecute)
