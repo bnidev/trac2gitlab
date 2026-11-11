@@ -3,146 +3,278 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>trac2gitlab · wizard</title>
+<title>trac2gitlab wizard</title>
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">◈ trac2gitlab</div>
-  <div class="proj mono" id="projLabel">wizard</div>
-  <div class="env mono">local · stepwise wizard</div>
+  <button class="brand" id="homeLink" type="button" aria-label="All migrations">
+    <span class="brand-mark" data-icon="arrow-right-left"></span>trac2gitlab
+  </button>
+  <span class="vdiv" aria-hidden="true"></span>
+  <label class="switcher" title="Switch project">
+    <span data-icon="folder-git"></span>
+    <select id="projectSelect" aria-label="Project"></select>
+    <span class="chev" data-icon="chevrons-up-down" data-size="sm"></span>
+  </label>
+  <span class="grow"></span>
+  <span class="chip" id="chipTrac">Trac not tested</span>
+  <span class="chip" id="chipGitlab">GitLab not tested</span>
 </header>
-<div class="layout">
-  <aside class="sidebar">
-    <div class="side-h mono">MIGRATION</div>
-    <nav id="steps"></nav>
-    <div class="hint">Steps gate each other: preflight first, execute only when READY. Only an explicit execute writes to GitLab.</div>
-  </aside>
-  <main class="center">
-    <h1 id="headline">Connect</h1>
-    <p class="sub" id="subhead"></p>
 
-    <div class="step-pane" id="pane-connect">
-      <section class="card">
-        <div class="card-h mono">PROJECT · pick or create</div>
-        <div class="row"><input id="newProject" class="input mono" placeholder="new-project-name" maxlength="64">
-          <button id="createProject" class="btn">Create</button></div>
-        <div id="projectList" class="row wrap"></div>
-        <div id="projectInfo" class="muted">select a project…</div>
-      </section>
-      <section class="card">
-        <div class="card-h mono">CONNECTION · migration.yaml + .env (secrets never shown)</div>
-        <div class="subcard">
-          <div class="row spread"><span class="mono muted">TRAC · XML-RPC source</span><span class="row"><button id="testTrac" class="btn ghost">Test Trac</button><button id="saveTrac" class="btn">Save Trac</button></span></div>
-          <div class="form">
-            <label>Trac URL<input id="fTracUrl" class="input mono" placeholder="https://trac.example.com"></label>
-            <label>RPC path<input id="fTracRpc" class="input mono" placeholder="/xmlrpc"></label>
-            <label>Trac user<input id="fTracUser" class="input mono" placeholder="" autocomplete="off"></label>
-            <label>Trac password<input id="fTracPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
-            <label class="checkline"><input type="checkbox" id="tracHtaccess"> Trac sits behind htaccess</label>
-          </div>
-          <div class="htaccess" id="tracHtaccessFields" hidden>
-            <div class="form">
-              <label>htaccess user<input id="fTracHtUser" class="input mono" placeholder="" autocomplete="off"></label>
-              <label>htaccess password<input id="fTracHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
-            </div>
-          </div>
-          <div id="tracTest" class="verdict" hidden></div>
-        </div>
-        <div class="subcard">
-          <div class="row spread"><span class="mono muted">GITLAB · API target</span><span class="row"><button id="testGitlab" class="btn ghost">Test GitLab</button><button id="saveGitlab" class="btn">Save GitLab</button></span></div>
-          <div class="form">
-            <label>GitLab URL<input id="fGitlabUrl" class="input mono" placeholder="https://gitlab.example.com"></label>
-            <label>GitLab token<input id="fGitlabToken" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
-            <label>GitLab project<input id="fGitlabProj" class="input mono" placeholder="group/project or numeric id"></label>
-            <label class="checkline"><input type="checkbox" id="gitlabHtaccess"> GitLab sits behind htaccess</label>
-          </div>
-          <div class="htaccess" id="gitlabHtaccessFields" hidden>
-            <div class="form">
-              <label>htaccess user<input id="fGitlabHtUser" class="input mono" placeholder="" autocomplete="off"></label>
-              <label>htaccess password<input id="fGitlabHtPass" type="password" class="input mono" placeholder="only sent, never shown" autocomplete="off"></label>
-            </div>
-          </div>
-          <div id="gitlabTest" class="verdict" hidden></div>
-        </div>
-        <div id="connVerdict" class="verdict" hidden></div>
-      </section>
-      <div class="pager"><span></span><button class="btn" data-goto="export">Next: Export →</button></div>
+<!-- ============ Projects home ============ -->
+<div id="viewHome" class="shell" hidden>
+  <main class="home">
+    <div class="page-head">
+      <div class="titles">
+        <h1>Migrations</h1>
+        <p class="lead">Each project lives in <code>projects/&lt;name&gt;/</code> with its own config, mappings and state. Resume any of them where it stopped.</p>
+      </div>
+      <button class="btn primary" id="showCreate" type="button"><span data-icon="plus"></span>New migration</button>
     </div>
-
-    <div class="step-pane" id="pane-export">
-      <section class="card">
-        <div class="card-h mono">EXPORT · data/ (read-only vs Trac)</div>
-        <div class="row"><button id="runExport" class="btn">Run export</button><span class="muted">pulls tickets, wiki, users into data/</span></div>
-        <div id="exportVerdict" class="verdict">—</div>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="connect">← Back</button><button class="btn" data-goto="identities">Next: Identities →</button></div>
+    <form class="panel pad create" id="createForm" hidden>
+      <label class="field">Project name
+        <input id="newProject" class="input" placeholder="e.g. acme-platform" maxlength="64" autocomplete="off" required>
+        <span class="help">Creates projects/&lt;name&gt;/ with migration.yaml. Letters, digits, dots, dashes.</span>
+      </label>
+      <button class="btn primary" id="createProject" type="submit">Create project</button>
+      <button class="btn" id="cancelCreate" type="button">Cancel</button>
+    </form>
+    <div class="note fail" id="createError" hidden></div>
+    <div class="stats" id="homeStats"></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Project</th><th>Target</th><th>Step</th><th>Status</th><th></th></tr></thead>
+        <tbody id="projectRows"><tr><td colspan="5" class="empty">Loading projects…</td></tr></tbody>
+      </table>
     </div>
-
-    <div class="step-pane" id="pane-identities">
-      <section class="card">
-        <div class="card-h mono">IDENTITIES · mappings/users.yaml</div>
-        <div class="row"><button id="runDiscover" class="btn">Discover authors</button><span class="muted">reads data/ · writes mappings/users.yaml once, never overwrites</span></div>
-        <div class="row"><button id="validateUsers" class="btn">Validate</button><span class="muted" id="usersHint">local parse only · --check-gitlab stays in the CLI</span></div>
-        <div id="users"></div>
-        <div id="usersVerdict" class="verdict">—</div>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="export">← Back</button><button class="btn" data-goto="preflight">Next: Preflight →</button></div>
-    </div>
-
-    <div class="step-pane" id="pane-preflight">
-      <section class="card">
-        <div class="card-h mono">STATUS · state/migration.yaml</div>
-        <pre id="status" class="mono">select a project…</pre>
-      </section>
-      <section class="card">
-        <div class="card-h mono">CHECKLIST · cached preflight report</div>
-        <div class="row"><button id="runPreflight" class="btn">Run preflight</button><span class="muted" id="runHint">read-only · writes reports/preflight.md</span></div>
-        <div id="checks"></div>
-        <div id="verdict" class="verdict">—</div>
-        <details><summary class="mono muted">raw report</summary><pre id="report" class="mono">select a project…</pre></details>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="identities">← Back</button><button class="btn" data-goto="dryrun">Next: Dry-run →</button></div>
-    </div>
-
-    <div class="step-pane" id="pane-dryrun">
-      <section class="card">
-        <div class="card-h mono">DRY-RUN · state/migration.yaml (no GitLab writes)</div>
-        <div class="row"><button id="runDryRun" class="btn">Run dry-run</button><span class="muted">previews per-phase counts</span></div>
-        <div id="jobStatus" class="verdict">—</div>
-        <pre id="jobLog" class="mono">no job yet</pre>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="preflight">← Back</button><button class="btn" data-goto="execute">Next: Execute →</button></div>
-    </div>
-
-    <div class="step-pane" id="pane-execute">
-      <section class="card">
-        <div class="card-h mono">EXECUTE · writes to GitLab (gated)</div>
-        <div class="row"><label class="confirm"><input type="checkbox" id="confirmExecute"> <span>I confirm writing to GitLab. No force, no undo.</span></label></div>
-        <div class="row"><button id="runExecute" class="btn danger" disabled>Execute --execute</button><span class="muted">requires READY preflight + your explicit confirmation</span></div>
-        <div id="executeVerdict" class="verdict">—</div>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="dryrun">← Back</button><button class="btn" data-goto="finish">Next: Patch + Validate →</button></div>
-    </div>
-
-    <div class="step-pane" id="pane-finish">
-      <section class="card">
-        <div class="card-h mono">PATCH · author restore (copy to GitLab host)</div>
-        <div class="row"><button id="loadPatch" class="btn">Preview patch</button>
-          <label class="muted"><input type="checkbox" id="patchApply"> apply (DRY_RUN=false)</label>
-          <button id="copyPatch" class="btn">Copy</button></div>
-        <div id="patchVerdict" class="verdict">—</div>
-        <details open><summary class="mono muted">shell block</summary><pre id="patchShell" class="mono">press Preview patch…</pre></details>
-      </section>
-      <section class="card">
-        <div class="card-h mono">VALIDATION · reports/validation.md</div>
-        <div class="row"><button id="runValidate" class="btn">Run validate</button><span class="muted">compares export with GitLab target</span></div>
-        <pre id="validation" class="mono">—</pre>
-      </section>
-      <div class="pager"><button class="btn ghost" data-goto="execute">← Back</button><span></span></div>
-    </div>
-
   </main>
+</div>
+
+<!-- ============ Wizard ============ -->
+<div id="viewWizard" class="shell" hidden>
+  <nav class="stepper" aria-label="Migration steps">
+    <p class="stepper-title">Migration steps</p>
+    <div id="steps"></div>
+    <div class="safety">
+      <b><span data-icon="shield-check"></span>Nothing writes to GitLab</b>
+      until preflight is READY and you confirm Execute. Trac is never written to.
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="work">
+
+      <!-- Connect -->
+      <section class="step-pane" id="pane-connect" hidden>
+        <div class="page-head"><div class="titles">
+          <h1>Connect Trac and GitLab</h1>
+          <p class="lead">Saved to <code class="pdir"></code>migration.yaml. Passwords and tokens go to .env and are never shown again.</p>
+        </div></div>
+        <div class="banner" id="connVerdict" role="status"></div>
+        <div class="panel">
+          <div class="section">
+            <div class="section-head">
+              <span class="icon-box" data-icon="database"></span>
+              <div class="titles"><h2>Trac source</h2><p>XML-RPC endpoint. Read only.</p></div>
+              <span class="pill" id="tracPill">Not tested</span>
+            </div>
+            <div class="grid2">
+              <label class="field">Trac URL<input id="fTracUrl" class="input" placeholder="https://trac.example.com" autocomplete="off"></label>
+              <label class="field">RPC path<input id="fTracRpc" class="input" placeholder="/login/xmlrpc" autocomplete="off"></label>
+              <label class="field">Username<input id="fTracUser" class="input" autocomplete="off"></label>
+              <label class="field">Password<input id="fTracPass" type="password" class="input" autocomplete="off"><span class="help" id="hTracPass">Stored in .env</span></label>
+            </div>
+            <label class="switch"><input type="checkbox" id="tracHtaccess"> Trac is behind HTTP basic auth (htaccess)</label>
+            <div class="grid2 sub" id="tracHtaccessFields" hidden>
+              <label class="field">htaccess user<input id="fTracHtUser" class="input" autocomplete="off"></label>
+              <label class="field">htaccess password<input id="fTracHtPass" type="password" class="input" autocomplete="off"></label>
+            </div>
+            <div class="actions">
+              <button class="btn" id="saveTrac" type="button"><span data-icon="save"></span>Save Trac</button>
+              <button class="btn" id="testTrac" type="button"><span data-icon="plug"></span>Test Trac</button>
+              <span class="muted">Test uses the saved connection.</span>
+            </div>
+            <div class="note" id="tracTest" role="status" hidden></div>
+          </div>
+          <div class="section">
+            <div class="section-head">
+              <span class="icon-box" data-icon="git-merge"></span>
+              <div class="titles"><h2>GitLab target</h2><p>API v4. Needs Owner or instance Administrator.</p></div>
+              <span class="pill" id="gitlabPill">Not tested</span>
+            </div>
+            <div class="grid2">
+              <label class="field">GitLab URL<input id="fGitlabUrl" class="input" placeholder="https://gitlab.example.com" autocomplete="off"></label>
+              <label class="field">Project<input id="fGitlabProj" class="input" placeholder="group/project" autocomplete="off"><span class="help">group/project or numeric ID</span></label>
+              <label class="field">Access token<input id="fGitlabToken" type="password" class="input" autocomplete="off"><span class="help" id="hGitlabToken">Scope: api. Stored in .env, never shown.</span></label>
+            </div>
+            <label class="switch"><input type="checkbox" id="gitlabHtaccess"> GitLab is behind HTTP basic auth (htaccess)</label>
+            <div class="grid2 sub" id="gitlabHtaccessFields" hidden>
+              <label class="field">htaccess user<input id="fGitlabHtUser" class="input" autocomplete="off"></label>
+              <label class="field">htaccess password<input id="fGitlabHtPass" type="password" class="input" autocomplete="off"></label>
+            </div>
+            <div class="actions">
+              <button class="btn" id="saveGitlab" type="button"><span data-icon="save"></span>Save GitLab</button>
+              <button class="btn" id="testGitlab" type="button"><span data-icon="plug"></span>Test GitLab</button>
+              <span class="muted">Checks reachability, your role and the target project.</span>
+            </div>
+            <div class="note" id="gitlabTest" role="status" hidden></div>
+          </div>
+        </div>
+        <div class="actions"><span class="grow"></span><button class="btn primary" data-goto="export" type="button">Continue to export<span data-icon="arrow-right"></span></button></div>
+      </section>
+
+      <!-- Export -->
+      <section class="step-pane" id="pane-export" hidden>
+        <div class="page-head">
+          <div class="titles"><h1>Export from Trac</h1>
+            <p class="lead">Reads tickets, comments, attachments, milestones and wiki into <code class="pdir"></code>data/. Trac is never modified.</p></div>
+          <button class="btn primary" id="runExport" type="button"><span data-icon="download"></span>Run export</button>
+        </div>
+        <div class="banner" id="exportVerdict" role="status"><span data-icon="info" data-size="lg"></span><div><strong>Not exported yet</strong><span>Run the export after the Trac connection tests green.</span></div></div>
+        <details class="job-log" open><summary><span data-icon="chevron-right"></span>Job log</summary><pre class="log" data-log>No job yet.</pre></details>
+        <div class="actions"><button class="btn" data-goto="connect" type="button"><span data-icon="arrow-left"></span>Back</button><span class="grow"></span><button class="btn primary" data-goto="identities" type="button">Continue to identities<span data-icon="arrow-right"></span></button></div>
+      </section>
+
+      <!-- Identities -->
+      <section class="step-pane" id="pane-identities" hidden>
+        <div class="page-head">
+          <div class="titles"><h1>Map Trac authors to GitLab users</h1>
+            <p class="lead">Read from <code class="pdir"></code>mappings/users.yaml. Edit that file to fill in GitLab usernames, then validate. Nobody is guessed.</p></div>
+          <button class="btn" id="runDiscover" type="button"><span data-icon="search"></span>Discover authors</button>
+          <button class="btn primary" id="validateUsers" type="button"><span data-icon="user-check"></span>Validate</button>
+        </div>
+        <div class="banner" id="usersVerdict" role="status"><span data-icon="info" data-size="lg"></span><div><strong>No mapping yet</strong><span>Run the export, then Discover authors.</span></div></div>
+        <div class="tabs" role="tablist" id="userTabs">
+          <button class="tab" role="tab" data-filter="all" aria-selected="true">All <span class="count" id="cAll">0</span></button>
+          <button class="tab warn" role="tab" data-filter="unresolved" aria-selected="false">Unresolved <span class="count" id="cUnres">0</span></button>
+          <button class="tab" role="tab" data-filter="mapped" aria-selected="false">Mapped <span class="count" id="cMapped">0</span></button>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Trac author</th><th>Aliases</th><th>GitLab user</th><th class="w-status">Status</th></tr></thead>
+            <tbody id="users"><tr><td colspan="4" class="empty">No authors loaded.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="note"><span data-icon="info"></span><span>Unresolved authors are imported with an “Originally by …” footer and skipped by the author patch. Their content is never attributed to the migration account.</span></div>
+        <div class="actions"><button class="btn" data-goto="export" type="button"><span data-icon="arrow-left"></span>Back</button><span class="grow"></span><button class="btn primary" data-goto="preflight" type="button">Continue to preflight<span data-icon="arrow-right"></span></button></div>
+      </section>
+
+      <!-- Preflight -->
+      <section class="step-pane" id="pane-preflight" hidden>
+        <div class="page-head">
+          <div class="titles"><h1>Preflight</h1>
+            <p class="lead">Read-only checks against Trac and GitLab. Writes only <code class="pdir"></code>reports/preflight.md.</p></div>
+          <button class="btn primary" id="runPreflight" type="button"><span data-icon="refresh"></span>Run preflight</button>
+        </div>
+        <div class="banner" id="verdict" role="status"><span data-icon="info" data-size="lg"></span><div><strong>Not run yet</strong><span>Preflight gates every GitLab write.</span></div></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th style="width:200px">Check</th><th>Result</th><th class="w-status">Status</th></tr></thead>
+            <tbody id="checks"><tr><td colspan="3" class="empty">No checks yet.</td></tr></tbody>
+          </table>
+        </div>
+        <details><summary><span data-icon="chevron-right"></span>Raw report <code class="small">reports/preflight.md</code></summary><pre class="log" id="report">No report yet.</pre></details>
+        <div class="actions"><button class="btn" data-goto="identities" type="button"><span data-icon="arrow-left"></span>Back</button><span class="grow"></span><span class="muted">Dry-run writes nothing to GitLab.</span><button class="btn primary" data-goto="dryrun" type="button">Continue to dry-run<span data-icon="arrow-right"></span></button></div>
+      </section>
+
+      <!-- Dry-run -->
+      <section class="step-pane" id="pane-dryrun" hidden>
+        <div class="page-head">
+          <div class="titles"><h1>Dry-run</h1>
+            <p class="lead">Plans every phase and records counts in <code class="pdir"></code>state/migration.yaml. Nothing is written to GitLab.</p></div>
+          <button class="btn primary" id="runDryRun" type="button"><span data-icon="play"></span>Run dry-run</button>
+        </div>
+        <div class="banner" id="jobStatus" role="status"><span data-icon="info" data-size="lg"></span><div><strong>No dry-run yet</strong><span>Run it after preflight to see what Execute will create.</span></div></div>
+        <div class="table-wrap" data-plan></div>
+        <details class="job-log"><summary><span data-icon="chevron-right"></span>Job log</summary><pre class="log" data-log>No job yet.</pre></details>
+        <div class="actions"><button class="btn" data-goto="preflight" type="button"><span data-icon="arrow-left"></span>Back</button><span class="grow"></span><button class="btn primary" data-goto="execute" type="button">Review and execute<span data-icon="arrow-right"></span></button></div>
+      </section>
+
+      <!-- Execute -->
+      <section class="step-pane" id="pane-execute" hidden>
+        <div class="page-head"><div class="titles">
+          <h1>Review the plan, then execute</h1>
+          <p class="lead">This is the first step that writes to GitLab. Progress is saved per object, so a failed run resumes where it stopped.</p>
+        </div></div>
+        <div class="banner" id="executeBanner" role="status"></div>
+        <div class="table-wrap" data-plan></div>
+        <div class="gate">
+          <div class="section-head">
+            <span class="icon-box danger" data-icon="shield-alert"></span>
+            <div class="titles"><h2 id="gateTitle">Write to GitLab</h2><p>There is no undo. Deleting the GitLab project is the only rollback.</p></div>
+          </div>
+          <ul id="gateChecks"></ul>
+          <label class="field"><span>Type <code id="confirmWord">the project path</code> to confirm</span>
+            <input id="confirmExecute" class="input" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="actions">
+            <code class="muted small">trac2gitlab migrate --execute</code><span class="grow"></span>
+            <button class="btn" data-goto="dryrun" type="button"><span data-icon="arrow-left"></span>Back to dry-run</button>
+            <button class="btn danger" id="runExecute" type="button" disabled><span data-icon="play"></span>Execute migration</button>
+          </div>
+          <p class="muted small exec-reason" id="execReason" aria-live="polite"></p>
+          <div class="note" id="executeVerdict" role="status" hidden></div>
+        </div>
+        <details class="job-log"><summary><span data-icon="chevron-right"></span>Job log</summary><pre class="log" data-log>No job yet.</pre></details>
+      </section>
+
+      <!-- Patch + validate -->
+      <section class="step-pane" id="pane-finish" hidden>
+        <div class="page-head"><div class="titles">
+          <h1>Restore authors, then validate</h1>
+          <p class="lead">The API cannot set authors, so a reviewed script does it once on the GitLab host. The wizard never runs it.</p>
+        </div></div>
+        <div class="banner" id="valBanner" role="status"></div>
+        <div class="panel pad" style="display:flex;flex-direction:column;gap:14px">
+          <div class="section-head">
+            <div class="titles"><h2>1. Author patch</h2><p>Run on the GitLab host. Dry run first, review the output, then apply.</p></div>
+            <div class="segmented" role="group" aria-label="Patch mode">
+              <button type="button" id="modeDry" aria-pressed="true">Dry run</button>
+              <button type="button" id="modeApply" class="apply" aria-pressed="false">Apply</button>
+            </div>
+          </div>
+          <pre class="code" id="patchShell">Press “Generate script” to build the patch for this project.</pre>
+          <div class="actions">
+            <button class="btn" id="loadPatch" type="button"><span data-icon="refresh"></span>Generate script</button>
+            <button class="btn" id="copyPatch" type="button" disabled><span data-icon="copy"></span>Copy</button>
+            <span class="grow"></span>
+            <label class="check"><input type="checkbox" id="patchReviewed"> I ran the dry run and reviewed the output</label>
+          </div>
+          <div class="note" id="patchVerdict" role="status" hidden></div>
+        </div>
+        <div class="panel pad" style="display:flex;flex-direction:column;gap:14px">
+          <div class="section-head">
+            <div class="titles"><h2>2. Validation</h2><p>Compares the export with the GitLab target. Writes reports/validation.md.</p></div>
+            <button class="btn" id="runValidate" type="button"><span data-icon="refresh"></span>Run validate</button>
+          </div>
+          <pre class="log" id="validation">No reports/validation.md yet.</pre>
+        </div>
+        <details class="job-log"><summary><span data-icon="chevron-right"></span>Job log</summary><pre class="log" data-log>No job yet.</pre></details>
+      </section>
+
+    </div>
+
+    <aside class="aside">
+      <div class="panel summary">
+        <h2>Migration summary</h2>
+        <dl>
+          <div class="kv"><dt>Project</dt><dd id="sProject">—</dd></div>
+          <div class="kv"><dt>Source</dt><dd id="sSource">—</dd></div>
+          <div class="kv"><dt>Target</dt><dd id="sTarget">—</dd></div>
+          <div class="kv"><dt>Preflight</dt><dd id="sPreflight" class="sans">Not run</dd></div>
+          <div class="kv"><dt>Identities</dt><dd id="sUsers" class="sans">No mapping yet</dd></div>
+          <div class="kv"><dt>Last job</dt><dd id="sJob" class="sans">None in this session</dd></div>
+        </dl>
+        <hr class="rule">
+        <p class="next-h">Planned objects</p>
+        <div class="counts" id="sCounts"></div>
+        <hr class="rule">
+        <p class="next-h">Up next</p>
+        <p class="next-p" id="sNext"></p>
+      </div>
+    </aside>
+  </div>
 </div>
 <script src="/static/app.js" defer></script>
 </body>
