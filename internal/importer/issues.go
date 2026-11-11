@@ -210,6 +210,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		result.Completed++
 	}
 
+	warnUnresolvedChangesets(refs)
 	return result, nil
 }
 

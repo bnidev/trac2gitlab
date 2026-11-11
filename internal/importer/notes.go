@@ -149,6 +149,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		}
 	}
 
+	warnUnresolvedChangesets(refs)
 	return result, nil
 }
 

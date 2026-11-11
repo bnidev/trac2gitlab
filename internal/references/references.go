@@ -21,12 +21,13 @@ type Options struct {
 }
 
 type Refs struct {
-	enabled     bool
-	tickets     map[int64]int64
-	changesets  map[string]string
-	wiki        map[string]string
-	baseURL     string
-	projectPath string
+	enabled        bool
+	tickets        map[int64]int64
+	changesets     map[string]string
+	wiki           map[string]string
+	baseURL        string
+	projectPath    string
+	unresolvedRefs map[string]struct{}
 }
 
 type ticketFile struct {
@@ -43,12 +44,13 @@ type wikiFile struct {
 
 func Load(opts Options) (*Refs, error) {
 	r := &Refs{
-		enabled:     opts.Enabled,
-		tickets:     make(map[int64]int64),
-		changesets:  make(map[string]string),
-		wiki:        make(map[string]string),
-		baseURL:     strings.TrimRight(opts.BaseURL, "/"),
-		projectPath: strings.Trim(opts.ProjectPath, "/"),
+		enabled:        opts.Enabled,
+		tickets:        make(map[int64]int64),
+		changesets:     make(map[string]string),
+		wiki:           make(map[string]string),
+		baseURL:        strings.TrimRight(opts.BaseURL, "/"),
+		projectPath:    strings.Trim(opts.ProjectPath, "/"),
+		unresolvedRefs: make(map[string]struct{}),
 	}
 	if !opts.Enabled {
 		return r, nil
@@ -194,6 +196,7 @@ func (r *Refs) rewriteText(text string) string {
 		if link, ok := r.changesetLink(ref); ok {
 			return protect(link)
 		}
+		r.noteUnresolved(ref)
 		return m
 	})
 	text = changesetRe.ReplaceAllStringFunc(text, func(m string) string {
@@ -201,6 +204,7 @@ func (r *Refs) rewriteText(text string) string {
 		if link, ok := r.changesetLink(ref); ok {
 			return protect(link)
 		}
+		r.noteUnresolved(ref)
 		return m
 	})
 	text = bracketHashRe.ReplaceAllStringFunc(text, func(m string) string {
@@ -323,4 +327,21 @@ func (r *Refs) resolveChangeset(ref string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func (r *Refs) noteUnresolved(ref string) {
+	if r.unresolvedRefs == nil {
+		return
+	}
+	r.unresolvedRefs[strings.ToLower(ref)] = struct{}{}
+}
+
+// UnresolvedChangesets returns the number of distinct changeset references that
+// could not be mapped to a Git commit, either because no mapping file was loaded
+// or because the reference is not in it. Used to report references left as-is.
+func (r *Refs) UnresolvedChangesets() int {
+	if r == nil {
+		return 0
+	}
+	return len(r.unresolvedRefs)
 }
