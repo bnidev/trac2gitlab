@@ -8,12 +8,13 @@ import (
 
 func testRefs() *Refs {
 	return &Refs{
-		enabled:     true,
-		tickets:     map[int64]int64{1: 3, 3: 5},
-		changesets:  map[string]string{"abc123456789": "def456789abc"},
-		wiki:        map[string]string{"local-dev-setup": "local-dev-setup", "my page": "my-page"},
-		baseURL:     "https://gitlab.example.com",
-		projectPath: "group/project",
+		enabled:        true,
+		tickets:        map[int64]int64{1: 3, 3: 5},
+		changesets:     map[string]string{"abc123456789": "def456789abc"},
+		wiki:           map[string]string{"local-dev-setup": "local-dev-setup", "my page": "my-page"},
+		baseURL:        "https://gitlab.example.com",
+		projectPath:    "group/project",
+		unresolvedRefs: map[string]struct{}{},
 	}
 }
 
@@ -37,6 +38,14 @@ func TestChangesetRewrite(t *testing.T) {
 	}
 	if !strings.Contains(got, "[deadbeef]") {
 		t.Fatalf("unknown bracket hash should stay: %q", got)
+	}
+}
+
+func TestUnresolvedChangesets(t *testing.T) {
+	r := testRefs()
+	r.Rewrite("ok changeset:abc1234, unknown changeset:9999999 and [changeset:8888aaaa]")
+	if got := r.UnresolvedChangesets(); got != 2 {
+		t.Fatalf("UnresolvedChangesets = %d, want 2", got)
 	}
 }
 
@@ -95,5 +104,11 @@ func TestLoadMissingFiles(t *testing.T) {
 	}
 	if got := r.Rewrite("#1"); got != "#1" {
 		t.Fatalf("missing mapping should not rewrite: %q", got)
+	}
+	if got := r.Rewrite("see changeset:abcdef123456"); got != "see changeset:abcdef123456" {
+		t.Fatalf("missing changeset mapping should not rewrite: %q", got)
+	}
+	if r.UnresolvedChangesets() != 1 {
+		t.Fatalf("expected the unresolved changeset to be reported, got %d", r.UnresolvedChangesets())
 	}
 }

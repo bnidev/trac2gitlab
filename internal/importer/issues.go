@@ -23,7 +23,10 @@ type Result struct {
 	Total     int
 	Completed int
 	Failed    int
-	Errors    []string
+	// Skipped counts content deliberately left out (e.g. auto-generated
+	// changeset references), so it is reported rather than dropped silently.
+	Skipped int
+	Errors  []string
 }
 
 func (r *Result) fail(err error) {
@@ -207,6 +210,7 @@ func ImportIssues(client *gitlab.Client, config *config.Config) (Result, error) 
 		result.Completed++
 	}
 
+	warnUnresolvedChangesets(refs)
 	return result, nil
 }
 

@@ -37,6 +37,14 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 	if err != nil {
 		return result, err
 	}
+	// Skip excluded pages here too, so a re-export that leaves stale files
+	// behind still honours the current config.
+	for name, page := range pages {
+		if cfg.ExportOptions.WikiExcluded(name, page.Meta.Author) {
+			slog.Info("Skipping excluded wiki page", "page", name, "author", page.Meta.Author)
+			delete(pages, name)
+		}
+	}
 	result.Total = len(pages)
 	if len(pages) == 0 {
 		return result, nil
@@ -47,10 +55,7 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		result.fail(err)
 		return result, fmt.Errorf("list existing wiki pages: %w", err)
 	}
-	byTitle := make(map[string]*gitlab.Wiki, len(existing))
-	for _, page := range existing {
-		byTitle[strings.ToLower(page.Title)] = page
-	}
+	bySlug := wikiBySlug(existing)
 
 	attachmentsPath := filepath.Join(cfg.ExportOptions.ExportDir, "trac-wiki-attachments.json")
 	attachmentMap, err := loadWikiAttachmentMapping(attachmentsPath)
@@ -85,7 +90,7 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		body := wikiContent(string(content)+section, page.Meta)
 		body = refs.Rewrite(body)
 
-		if current, ok := byTitle[strings.ToLower(name)]; ok {
+		if current, ok := bySlug[strings.ToLower(name)]; ok {
 			if current.Content == body {
 				result.Completed++
 				continue
@@ -117,7 +122,19 @@ func ImportWiki(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		result.Completed++
 	}
 
+	warnUnresolvedChangesets(refs)
 	return result, nil
+}
+
+// wikiBySlug indexes existing wiki pages by slug. GitLab humanizes the page
+// title (dashes become spaces) but keeps the slug equal to the Trac page name,
+// so the slug is what identifies an existing page across reruns.
+func wikiBySlug(pages []*gitlab.Wiki) map[string]*gitlab.Wiki {
+	bySlug := make(map[string]*gitlab.Wiki, len(pages))
+	for _, page := range pages {
+		bySlug[strings.ToLower(page.Slug)] = page
+	}
+	return bySlug
 }
 
 func CollectWikiPages(wikiDir string) (map[string]WikiPageFile, error) {

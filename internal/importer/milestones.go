@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
@@ -14,18 +15,19 @@ import (
 	gitlabClient "gitlab.com/gitlab-org/api/client-go"
 )
 
-func ImportMilestones(client *gitlab.Client, config *config.Config) error {
+func ImportMilestones(client *gitlab.Client, config *config.Config) (Result, error) {
+	var result Result
 
 	project, err := client.GetProject(config.GitLab.ProjectID)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	slog.Info("Starting milestone import...", "project", project.Name, "projectID", project.ID)
 
 	existingMilestones, err := client.ListMilestones(project.ID, nil)
 	if err != nil {
-		return fmt.Errorf("failed to list existing milestones: %w", err)
+		return result, fmt.Errorf("failed to list existing milestones: %w", err)
 	}
 
 	if len(existingMilestones) > 0 {
@@ -37,9 +39,9 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 	fmt.Printf("Importing milestones for project: %s (ID: %d)\n", project.Name, project.ID)
 
 	// Import milestones from exported Trac data
-	milestones, err := utils.ReadFilesFromDir("data/milestones", ".json", os.Stderr)
+	milestones, err := utils.ReadFilesFromDir(filepath.Join(config.ExportOptions.ExportDir, "milestones"), ".json", os.Stderr)
 	if err != nil {
-		return fmt.Errorf("failed to read milestones from directory: %w", err)
+		return result, fmt.Errorf("failed to read milestones from directory: %w", err)
 	}
 
 	for _, milestoneData := range milestones {
@@ -51,14 +53,15 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 		}
 
 		if err := json.Unmarshal(milestoneData, &input); err != nil {
-			return fmt.Errorf("failed to unmarshal milestone data: %w", err)
+			return result, fmt.Errorf("failed to unmarshal milestone data: %w", err)
 		}
+		result.Total++
 
 		var dueDate time.Time
 		if input.DueDate != "" {
 			dueDate, err = time.Parse(time.RFC3339, input.DueDate)
 			if err != nil {
-				return fmt.Errorf("failed to parse due date %q: %w", input.DueDate, err)
+				return result, fmt.Errorf("failed to parse due date %q: %w", input.DueDate, err)
 			}
 		}
 
@@ -68,6 +71,7 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 			for _, existing := range existingMilestones {
 				if existing.Title == input.Name {
 					milestoneExists = true
+					result.Completed++
 					slog.Debug("Found existing milestone, skipping creation", "title", existing.Title, "id", existing.ID)
 
 					slog.Debug("Checking if existing milestone needs update", "title", existing.Title, "id", existing.ID)
@@ -83,7 +87,7 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 					if input.DueDate != "" {
 						parsedDueDate, err := gitlabClient.ParseISOTime(dueDate.Format("2006-01-02"))
 						if err != nil {
-							return fmt.Errorf("failed to parse due date %q: %w", input.DueDate, err)
+							return result, fmt.Errorf("failed to parse due date %q: %w", input.DueDate, err)
 						}
 						if existing.DueDate == nil || *existing.DueDate != parsedDueDate {
 							updateOpts.DueDate = &parsedDueDate
@@ -104,12 +108,16 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 					}
 
 					if needsUpdate {
-						slog.Debug("Updating existing milestone", "title", existing.Title, "id", existing.ID)
-						_, err = client.UpdateMilestone(project.ID, existing.ID, updateOpts)
-						if err != nil {
-							return fmt.Errorf("failed to update milestone: %w", err)
+						if config.DryRun {
+							slog.Info("dry-run: would update milestone", "title", existing.Title, "id", existing.ID)
+						} else {
+							slog.Debug("Updating existing milestone", "title", existing.Title, "id", existing.ID)
+							_, err = client.UpdateMilestone(project.ID, existing.ID, updateOpts)
+							if err != nil {
+								return result, fmt.Errorf("failed to update milestone: %w", err)
+							}
+							slog.Info("Milestone updated successfully", "title", existing.Title, "id", existing.ID)
 						}
-						slog.Info("Milestone updated successfully", "title", existing.Title, "id", existing.ID)
 					} else {
 						slog.Debug("No updates needed for existing milestone", "title", existing.Title, "id", existing.ID)
 					}
@@ -120,6 +128,10 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 		}
 
 		if !milestoneExists {
+			if config.DryRun {
+				slog.Info("dry-run: would create milestone", "title", input.Name)
+				continue
+			}
 			opts := &gitlab.MilestoneOptions{
 				Title:       input.Name,
 				Description: input.Description,
@@ -128,8 +140,9 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 
 			milestone, err := client.CreateMilestone(project.ID, opts)
 			if err != nil {
-				return fmt.Errorf("failed to create milestone: %s", err)
+				return result, fmt.Errorf("failed to create milestone: %s", err)
 			}
+			result.Completed++
 
 			slog.Info("Milestone created successfully", "title", milestone.Title, "id", milestone.ID)
 
@@ -150,6 +163,6 @@ func ImportMilestones(client *gitlab.Client, config *config.Config) error {
 		}
 	}
 
-	slog.Info("Milestone import completed", "count", len(milestones))
-	return nil
+	slog.Info("Milestone import completed", "count", result.Completed)
+	return result, nil
 }

@@ -55,20 +55,24 @@ engine code instead.
 All commands take `--project-dir projects/<name>`.
 
 1. `trac2gitlab init --project-dir ...`
-2. User fills `migration.yaml` + `.env`; propose `mappings/users.yaml`.
-3. `trac2gitlab preflight --project-dir ...` — must be `READY` or
+2. User fills `migration.yaml` + `.env`.
+3. `trac2gitlab export --project-dir ...` — read-only against Trac; fills `data/`.
+4. `trac2gitlab discover --project-dir ... --write-users mappings/users.yaml` —
+   propose identities; the user reviews and fills the GitLab usernames.
+5. `trac2gitlab preflight --project-dir ...` — must be `READY` or
    `READY WITH WARNINGS` accepted by the user. `BLOCKED`/`NOT READY` stops here.
-4. `trac2gitlab users validate --project-dir ... --check-gitlab` — resolve
+   Preflight requires `mappings/users.yaml` to exist, so it runs after export and
+   discover, not first.
+6. `trac2gitlab users validate --project-dir ... --check-gitlab` — resolve
    identities; unresolved users need a user decision.
-5. `trac2gitlab export --project-dir ...`
-6. `trac2gitlab migrate --project-dir ...` — dry-run. Show the plan.
-7. Get explicit confirmation, then
+7. `trac2gitlab migrate --project-dir ...` — dry-run. Show the plan.
+8. Get explicit confirmation, then
    `trac2gitlab migrate --project-dir ... --execute`.
-8. `trac2gitlab patch --project-dir ...` — emit the dry-run block. The user runs
+9. `trac2gitlab patch --project-dir ...` — emit the dry-run block. The user runs
    it on the GitLab host. Review, then emit `--apply` and run it.
-9. `trac2gitlab validate --project-dir ...` — report `PASS`,
-   `PASS WITH WARNINGS`, or `FAIL`.
-10. Summarize: counts, warnings, unresolved identities, remaining manual work.
+10. `trac2gitlab validate --project-dir ...` — report `PASS`,
+    `PASS WITH WARNINGS`, or `FAIL`.
+11. Summarize: counts, warnings, unresolved identities, remaining manual work.
 
 The detailed skill contracts live in `skills/`.
 

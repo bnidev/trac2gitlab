@@ -82,24 +82,26 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		}
 		parsed = append(parsed, ticket)
 		for _, comment := range ticket.Comments {
-			if comment.OldValue == nil || comment.Time.IsZero() {
+			if comment.Time.IsZero() {
 				continue
 			}
-			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || IsChangesetComment(body) {
+			if _, ok := CommentBody(comment); ok {
+				result.Total++
 				continue
 			}
-			result.Total++
+			if skippedContent(comment) {
+				result.Skipped++
+			}
 		}
 	}
 
 	for _, ticket := range parsed {
 		for i, comment := range ticket.Comments {
-			if comment.OldValue == nil || comment.Time.IsZero() {
+			if comment.Time.IsZero() {
 				continue
 			}
-			body := strings.TrimSpace(*comment.OldValue)
-			if body == "" || IsChangesetComment(body) {
+			body, ok := CommentBody(comment)
+			if !ok {
 				continue
 			}
 
@@ -147,6 +149,7 @@ func ImportNotes(client *gitlab.Client, cfg *config.Config) (Result, error) {
 		}
 	}
 
+	warnUnresolvedChangesets(refs)
 	return result, nil
 }
 
@@ -173,6 +176,26 @@ func IsChangesetComment(body string) bool {
 	return strings.HasPrefix(body, "In [changeset:") ||
 		strings.Contains(body, "#!CommitTicketReference") ||
 		strings.Contains(body, `class="changeset"`)
+}
+
+// CommentBody returns the text of a Trac changelog comment entry. Trac puts the
+// comment number in OldValue and the text in NewValue; an entry with no text is
+// a field-change marker (e.g. "Description: modified"), not a comment.
+func CommentBody(c trac.ChangeLogEntry) (string, bool) {
+	if c.NewValue == nil {
+		return "", false
+	}
+	body := strings.TrimSpace(*c.NewValue)
+	if body == "" || IsChangesetComment(body) {
+		return "", false
+	}
+	return body, true
+}
+
+// skippedContent reports whether a comment entry carries text we deliberately
+// do not migrate: an auto-generated changeset reference.
+func skippedContent(c trac.ChangeLogEntry) bool {
+	return c.NewValue != nil && strings.TrimSpace(*c.NewValue) != "" && IsChangesetComment(*c.NewValue)
 }
 
 func noteKey(ticketID int64, createdAt time.Time, author, body string) string {

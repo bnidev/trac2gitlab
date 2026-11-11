@@ -1,11 +1,21 @@
 package importer
 
 import (
+	"log/slog"
 	"path/filepath"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
 	"github.com/bnidev/trac2gitlab/internal/references"
 )
+
+// warnUnresolvedChangesets reports changeset references that could not be
+// rewritten (no mapping loaded, or no matching entry), so they are not left
+// unresolved silently.
+func warnUnresolvedChangesets(refs *references.Refs) {
+	if n := refs.UnresolvedChangesets(); n > 0 {
+		slog.Warn("changeset references left unresolved (no mapping or no match)", "count", n)
+	}
+}
 
 func loadReferences(cfg *config.Config) (*references.Refs, error) {
 	pages, err := CollectWikiPages(filepath.Join(cfg.ExportOptions.ExportDir, "wiki"))

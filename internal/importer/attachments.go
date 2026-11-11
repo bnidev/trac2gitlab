@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +14,13 @@ import (
 	"github.com/bnidev/trac2gitlab/internal/utils"
 	"github.com/bnidev/trac2gitlab/pkg/gitlab"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
+)
+
+var (
+	// attachment:"file" — a link to an attachment.
+	reAttachmentRef = regexp.MustCompile(`attachment:"([^"]+)"`)
+	// [[Image(file)]] / [[Image(file, width)]] — an inline image.
+	reImageMacro = regexp.MustCompile(`\[\[Image\(\s*([^,)]+?)\s*(?:,[^)]*)?\)\]\]`)
 )
 
 type ticketWithAttachments struct {
@@ -114,8 +122,7 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			result.Completed++
 		}
 
-		section := attachmentSection(ticket, index)
-		if section == "" {
+		if len(ticket.Attachments) == 0 {
 			continue
 		}
 		if cfg.DryRun {
@@ -129,7 +136,9 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			slog.Error("Skipping attachment links", "ticket", ticket.ID, "errorMsg", err)
 			continue
 		}
-		if strings.Contains(issue.Description, section) {
+		section := attachmentSection(ticket, index, referencedAttachments(issue.Description))
+		description := resolveAttachmentRefs(issue.Description, ticket, index) + section
+		if description == issue.Description {
 			continue
 		}
 
@@ -139,7 +148,6 @@ func ImportAttachments(client *gitlab.Client, cfg *config.Config) (Result, error
 			slog.Error("Skipping attachment links", "ticket", ticket.ID, "errorMsg", err)
 			continue
 		}
-		description := issue.Description + section
 		if _, err := client.UpdateIssue(project.ID, ticket.ID, &gitlab.UpdateIssueOptions{
 			Description: &description,
 			UpdatedAt:   &changedAt,
@@ -157,9 +165,58 @@ func attachmentKey(ticketID int64, filename string) string {
 	return fmt.Sprintf("%d|%s", ticketID, filename)
 }
 
-func attachmentSection(ticket ticketWithAttachments, index map[string]attachmentRecord) string {
+// resolveAttachmentRefs rewrites Trac's inline attachment references
+// (attachment:"file" and [[Image(file, width)]]) to markdown using the uploaded
+// attachment URLs. References without an upload are left unchanged.
+func resolveAttachmentRefs(description string, ticket ticketWithAttachments, index map[string]attachmentRecord) string {
+	if description == "" ||
+		(!strings.Contains(description, "attachment:") && !strings.Contains(description, "[[Image(")) {
+		return description
+	}
+	url := func(name string) (string, bool) {
+		record, ok := index[attachmentKey(ticket.ID, name)]
+		if !ok || record.URL == "" {
+			return "", false
+		}
+		return record.URL, true
+	}
+	description = reAttachmentRef.ReplaceAllStringFunc(description, func(m string) string {
+		name := reAttachmentRef.FindStringSubmatch(m)[1]
+		if u, ok := url(name); ok {
+			return "[" + name + "](" + u + ")"
+		}
+		return m
+	})
+	description = reImageMacro.ReplaceAllStringFunc(description, func(m string) string {
+		name := reImageMacro.FindStringSubmatch(m)[1]
+		if u, ok := url(name); ok {
+			return "![" + name + "](" + u + ")"
+		}
+		return m
+	})
+	return description
+}
+
+// referencedAttachments returns the attachment filenames referenced inline in a
+// description (attachment:"file" or [[Image(file, width)]]), so they are not
+// listed again in the attachments section.
+func referencedAttachments(description string) map[string]bool {
+	refs := make(map[string]bool)
+	for _, m := range reAttachmentRef.FindAllStringSubmatch(description, -1) {
+		refs[m[1]] = true
+	}
+	for _, m := range reImageMacro.FindAllStringSubmatch(description, -1) {
+		refs[strings.TrimSpace(m[1])] = true
+	}
+	return refs
+}
+
+func attachmentSection(ticket ticketWithAttachments, index map[string]attachmentRecord, skip map[string]bool) string {
 	var lines []string
 	for _, attachment := range ticket.Attachments {
+		if skip[attachment.Filename] {
+			continue
+		}
 		record, ok := index[attachmentKey(ticket.ID, attachment.Filename)]
 		if !ok {
 			continue

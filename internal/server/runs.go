@@ -238,7 +238,7 @@ func runMigrate(cfg *config.Config, log func(string)) error {
 		fn      func() (importer.Result, error)
 	}{
 		{"milestones", cfg.ImportOptions.ImportMilestones, func() (importer.Result, error) {
-			return importer.Result{}, importer.ImportMilestones(client, cfg)
+			return importer.ImportMilestones(client, cfg)
 		}},
 		{"issues", cfg.ImportOptions.ImportIssues, func() (importer.Result, error) {
 			return importer.ImportIssues(client, cfg)
@@ -264,7 +264,7 @@ func runMigrate(cfg *config.Config, log func(string)) error {
 			return err
 		}
 		result, err := p.fn()
-		run.FinishPhase(p.name, result.Total, result.Completed, result.Failed, result.Errors)
+		run.FinishPhase(p.name, result.Total, result.Completed, result.Failed, result.Skipped, result.Errors)
 		if err != nil || result.Failed > 0 {
 			failed = true
 			run.Status = state.StatusFailed

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -15,58 +16,42 @@ func exportCmd(ctx *app.AppContext) *cobra.Command {
 	return &cobra.Command{
 		Use:   "export",
 		Short: "Export tickets, wiki, users, and attachments from Trac",
-		Run: func(cmd *cobra.Command, args []string) {
-
+		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := *ctx.Config
 
 			client, err := trac.NewTracClient(&cfg)
 			if err != nil {
-				slog.Error("Failed to create Trac client", "errorMsg", err)
-				return
+				return fmt.Errorf("create Trac client: %w", err)
 			}
-
-			slog.Debug("Checking compatibility of Trac client...")
-
-			if validateErr := client.ValidateExpectedMethods(); validateErr != nil {
-				slog.Error("Trac client validation failed", "errorMsg", validateErr)
-				return
+			if err := client.ValidateExpectedMethods(); err != nil {
+				return fmt.Errorf("trac client validation: %w", err)
 			}
-
-			if validateVersionErr := client.ValidatePluginVersion(); validateVersionErr != nil {
-				slog.Error("Trac plugin version validation failed", "errorMsg", validateVersionErr)
-				return
+			if err := client.ValidatePluginVersion(); err != nil {
+				return fmt.Errorf("trac plugin version validation: %w", err)
 			}
 
 			start := time.Now()
-
-			if cfg.ExportOptions.IncludeTicketFields {
-				if err := exporter.ExportTicketFields(client, &cfg); err != nil {
-					slog.Error("Ticket fields export failed", "errorMsg", err)
+			steps := []struct {
+				name    string
+				enabled bool
+				fn      func() error
+			}{
+				{"ticket fields", cfg.ExportOptions.IncludeTicketFields, func() error { return exporter.ExportTicketFields(client, &cfg) }},
+				{"tickets", true, func() error { return exporter.ExportTickets(client, &cfg) }},
+				{"milestones", true, func() error { return exporter.ExportMilestones(client, &cfg) }},
+				{"wiki", cfg.ExportOptions.IncludeWiki, func() error { return exporter.ExportWiki(client, &cfg) }},
+				{"users", cfg.ExportOptions.IncludeUsers, func() error { return exporter.ExportUsers(client, &cfg) }},
+			}
+			for _, s := range steps {
+				if !s.enabled {
+					continue
+				}
+				if err := s.fn(); err != nil {
+					return fmt.Errorf("export %s: %w", s.name, err)
 				}
 			}
-
-			if err := exporter.ExportTickets(client, &cfg); err != nil {
-				slog.Error("Ticket export failed", "errorMsg", err)
-			}
-
-			if err := exporter.ExportMilestones(client, &cfg); err != nil {
-				slog.Error("Milestone export failed", "errorMsg", err)
-			}
-
-			if cfg.ExportOptions.IncludeWiki {
-				if err := exporter.ExportWiki(client, &cfg); err != nil {
-					slog.Error("Wiki export failed", "errorMsg", err)
-				}
-			}
-
-			if cfg.ExportOptions.IncludeUsers {
-				if err := exporter.ExportUsers(client, &cfg); err != nil {
-					slog.Error("User export failed", "errorMsg", err)
-				}
-			}
-
-			elapsed := time.Since(start)
-			slog.Info("Export completed successfully", "duration", elapsed)
+			slog.Info("Export completed successfully", "duration", time.Since(start))
+			return nil
 		},
 	}
 }

@@ -12,8 +12,9 @@ engine does that.
   accepted by the user.
 - `mappings/users.yaml` passed `trac2gitlab users validate --check-gitlab`.
 - `projects/<name>/migration.yaml` and `.env` are present.
-- If changeset references should point at Git commits,
-  `mappings/hg-changesets.json` exists from `hg-to-gitlab`.
+- Optional: `mappings/hg-changesets.json` is present if changeset references
+  should point at Git commits. It is produced outside this tool (an hg→git
+  conversion); trac2gitlab only consumes it.
 - The target project is fresh, or the user explicitly accepted the offset.
 
 Do not start if preflight is `BLOCKED` or `NOT READY`.
@@ -25,7 +26,10 @@ Do not start if preflight is `BLOCKED` or `NOT READY`.
    trac2gitlab export --project-dir projects/<name>
    ```
    Read-only against Trac. If the source changed since the last export, this
-   keeps the import consistent with it.
+   keeps the import consistent with it. It exits non-zero if any phase fails;
+   fix the cause and rerun. Changing `export_options` (for example
+   `wiki_exclude`) takes effect only on re-export; the wiki phase logs
+   `excluded=N`.
 
 2. **Dry run.**
    ```bash

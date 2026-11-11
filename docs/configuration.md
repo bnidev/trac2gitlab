@@ -42,6 +42,8 @@ export_options:
   include_ticket_fields: true
   include_users: true
   export_dir: data
+  wiki_exclude: []          # page names or globs to skip, e.g. [TracGuide, "Trac*"]
+  wiki_exclude_authors: []  # skip pages whose latest author matches, e.g. [trac]
 
 import_options:
   import_issues: true
@@ -75,6 +77,23 @@ labels:
 | `import_options` | Which phases `trac2gitlab migrate` runs, and the identity mapping |
 | `references` | Ticket/changeset/wiki reference maps |
 | `labels` | Trac field-to-label mapping |
+
+### Skipping wiki pages
+
+Trac ships its own documentation as wiki pages (the TracGuide set), and an
+untouched page stays authored by Trac's system account. To keep them out of the
+migration, exclude them at export:
+
+```yaml
+export_options:
+  wiki_exclude_authors: [trac]   # pages whose latest author is the system user
+  wiki_exclude: ["Trac*"]        # names or globs (path.Match)
+```
+
+`wiki_exclude_authors` matches the author of the **latest** revision, so a
+default-named page that a human later edited (e.g. `WikiStart`) is kept. Both
+options default to empty, which migrates every page. Excluded pages are logged
+and left out of `data/wiki`; references to them stay unchanged.
 
 ## Identity mapping
 
@@ -110,7 +129,9 @@ trac2gitlab users validate --project-dir projects/my-project --check-gitlab
 - `mappings/wiki-pages.json`: `{"pages": {"Trac Page": "gitlab-slug"}}` (optional)
 
 Missing files are allowed. Ticket references then remain unchanged and
-changeset references are left as-is.
+changeset references are left as-is. `hg-changesets.json` is produced outside
+trac2gitlab (from an hg→git conversion); the engine only consumes it, and
+changeset references inside notes cannot be corrected after the first import.
 
 ## Labels
 
