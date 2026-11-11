@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/bnidev/trac2gitlab/internal/config"
 	"github.com/bnidev/trac2gitlab/pkg/trac"
@@ -34,7 +35,7 @@ func ExportMilestones(client *trac.Client, config *config.Config) error {
 			continue
 		}
 
-		filename := filepath.Join(milestonesDir, fmt.Sprintf("milestone-%s.json", name))
+		filename := filepath.Join(milestonesDir, fmt.Sprintf("milestone-%s.json", milestoneFileName(name)))
 		file, err := os.Create(filename)
 		if err != nil {
 			slog.Warn("Failed to create milestone file", "name", name, "error", err)
@@ -54,4 +55,11 @@ func ExportMilestones(client *trac.Client, config *config.Config) error {
 
 	slog.Info("Milestone export completed", "count", len(milestoneNames))
 	return nil
+}
+
+// milestoneFileName keeps a milestone title inside the milestones directory.
+// Titles like "Project Matrix CR 11/2026" must not create a subpath; the title
+// is read back from the JSON body, so the filename is only a container.
+func milestoneFileName(name string) string {
+	return strings.ReplaceAll(name, "/", "-")
 }

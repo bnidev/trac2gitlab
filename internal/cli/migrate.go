@@ -87,7 +87,7 @@ func migrateCmd(ctx *app.AppContext) *cobra.Command {
 				fn      func() (importer.Result, error)
 			}{
 				{"milestones", cfg.ImportOptions.ImportMilestones, func() (importer.Result, error) {
-					return importer.Result{}, importer.ImportMilestones(client, &cfg)
+					return importer.ImportMilestones(client, &cfg)
 				}},
 				{"issues", cfg.ImportOptions.ImportIssues, func() (importer.Result, error) {
 					return importer.ImportIssues(client, &cfg)
