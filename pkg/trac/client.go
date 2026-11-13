@@ -94,7 +94,7 @@ func (c *Client) ValidatePluginVersion() error {
 		return fmt.Errorf("failed to check plugin version: %w", err)
 	}
 
-	if len(version) < 2 {
+	if len(version) < 3 {
 		return fmt.Errorf("unexpected version format: %v", version)
 	}
 
