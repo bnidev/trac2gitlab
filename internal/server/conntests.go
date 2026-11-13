@@ -2,6 +2,10 @@ package server
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,54 +17,77 @@ import (
 	"github.com/bnidev/trac2gitlab/internal/config"
 )
 
-// connTests remembers the last Trac/GitLab test result per project for the
-// life of the server, so a reload keeps the Connect step's state. Saving a
-// service's settings clears its result.
+// connTests remembers Trac/GitLab test results for the life of the server,
+// keyed by a fingerprint of the exact settings tested. A result counts for
+// the Connect step only while the saved settings still match it, so saving
+// tested values keeps "Connected", and any change (in the wizard or by hand
+// in .env/migration.yaml) falls back to "Not tested".
 type connTests struct {
-	mu sync.Mutex
-	m  map[string]bool // key: projectDir + "\x00" + kind
+	mu  sync.Mutex
+	key []byte                     // per-process HMAC key: fingerprints of secrets stay unguessable
+	m   map[string]map[string]bool // projectDir+"\x00"+kind -> fingerprint -> ok
 }
 
-func newConnTests() *connTests { return &connTests{m: map[string]bool{}} }
-
-func (c *connTests) set(dir, kind string, ok bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.m[dir+"\x00"+kind] = ok
+func newConnTests() *connTests {
+	key := make([]byte, 32)
+	_, _ = rand.Read(key) // crypto/rand.Read never returns an error on supported platforms
+	return &connTests{key: key, m: map[string]map[string]bool{}}
 }
 
-func (c *connTests) clear(dir, kind string) {
+// maxResults bounds remembered fingerprints per service; older ones are
+// dropped wholesale, which only means "Not tested" for stale settings.
+const maxResults = 16
+
+func (c *connTests) record(dir, kind, fp string, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	delete(c.m, dir+"\x00"+kind)
+	k := dir + "\x00" + kind
+	if c.m[k] == nil || len(c.m[k]) >= maxResults {
+		c.m[k] = map[string]bool{}
+	}
+	c.m[k][fp] = ok
 }
 
-// get returns nil when the service was not tested since its last save.
-func (c *connTests) get(dir, kind string) *bool {
+// lookup returns nil when these exact settings were never tested.
+func (c *connTests) lookup(dir, kind, fp string) *bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	ok, found := c.m[dir+"\x00"+kind]
+	ok, found := c.m[dir+"\x00"+kind][fp]
 	if !found {
 		return nil
 	}
 	return &ok
 }
 
-// testRun answers one Test request. Results of tests against unsaved form
-// values are reported but not remembered: they say nothing about the saved
-// connection the Connect step is about.
+// fingerprint hashes the settings one service's test depends on.
+func (c *connTests) fingerprint(cfg *config.Config, kind string) string {
+	var parts []string
+	if kind == "trac" {
+		t := cfg.Trac
+		parts = []string{t.BaseURL, t.RPCPath, t.Username, t.Password, t.HtaccessUser, t.HtaccessPass}
+	} else {
+		g := cfg.GitLab
+		parts = []string{g.BaseURL, g.Token, g.HtaccessUser, g.HtaccessPass, g.Project, strconv.Itoa(g.ProjectID)}
+	}
+	mac := hmac.New(sha256.New, c.key)
+	mac.Write([]byte(strings.Join(parts, "\x00")))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// testRun answers one Test request.
 type testRun struct {
 	s       *Server
 	w       http.ResponseWriter
 	dir     string
 	kind    string
-	unsaved bool
+	fp      string // fingerprint of the settings actually tested (saved + form overlay)
+	unsaved bool   // the form differed from the saved settings
 }
 
+// done records the result under the tested settings' fingerprint. A test of
+// unsaved values starts counting once exactly those values are saved.
 func (t testRun) done(ok bool, msg string) {
-	if !t.unsaved {
-		t.s.tests.set(t.dir, t.kind, ok)
-	}
+	t.s.tests.record(t.dir, t.kind, t.fp, ok)
 	writeJSON(t.w, map[string]any{"ok": ok, "message": msg, "unsaved": t.unsaved})
 }
 

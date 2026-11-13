@@ -524,17 +524,24 @@ func TestHasExport(t *testing.T) {
 	}
 }
 
-func TestConnectionTestResultsPersistUntilSave(t *testing.T) {
-	trac := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestConnectionTestResultsFollowSettings(t *testing.T) {
+	saved := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nope", http.StatusUnauthorized)
 	}))
-	defer trac.Close()
+	defer saved.Close()
+	typedHits := 0
+	typed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		typedHits++
+		http.Error(w, "nope", http.StatusUnauthorized)
+	}))
+	defer typed.Close()
+
 	root := t.TempDir()
 	dir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	cfg := "trac:\n  base_url: " + trac.URL + "\n  rpc_path: /xmlrpc\ngitlab:\n  base_url: https://gitlab.invalid\n  project: g/p\n"
+	cfg := "trac:\n  base_url: " + saved.URL + "\n  rpc_path: /xmlrpc\ngitlab:\n  base_url: https://gitlab.invalid\n  project: g/p\n"
 	if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte(cfg), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -555,48 +562,45 @@ func TestConnectionTestResultsPersistUntilSave(t *testing.T) {
 		}
 		return out
 	}
-	conn := func() map[string]any { return do("GET", "/api/project/connection?project=demo", "") }
+	tracOk := func() any { return do("GET", "/api/project/connection?project=demo", "")["tracOk"] }
+	typedForm := `{"tracBaseUrl":"` + typed.URL + `"}`
 
-	if c := conn(); c["tracOk"] != nil || c["gitlabOk"] != nil {
-		t.Fatalf("untested project reports results: %v / %v", c["tracOk"], c["gitlabOk"])
+	if got := tracOk(); got != nil {
+		t.Fatalf("untested: tracOk %v", got)
 	}
-	// Test with an unsaved URL contacts that URL and is not remembered.
-	typedHits := 0
-	typed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		typedHits++
-		http.Error(w, "nope", http.StatusUnauthorized)
-	}))
-	defer typed.Close()
-	if res := do("POST", "/api/test/trac?project=demo", `{"tracBaseUrl":"`+typed.URL+`"}`); res["unsaved"] != true || res["ok"] != false {
-		t.Fatalf("unsaved test: %v", res)
+	// Testing typed values contacts them and does not count for the saved settings yet.
+	if res := do("POST", "/api/test/trac?project=demo", typedForm); res["unsaved"] != true || res["ok"] != false {
+		t.Fatalf("typed test: %v", res)
 	}
 	if typedHits == 0 {
-		t.Fatal("unsaved test did not contact the typed URL")
+		t.Fatal("typed test did not contact the typed URL")
 	}
-	if c := conn(); c["tracOk"] != nil {
-		t.Fatalf("unsaved test result was remembered: %v", c["tracOk"])
+	if got := tracOk(); got != nil {
+		t.Fatalf("typed result counted for different saved settings: %v", got)
 	}
-	// The form matching the saved values counts as a saved test.
-	if res := do("POST", "/api/test/trac?project=demo", `{"tracBaseUrl":"`+trac.URL+`"}`); res["unsaved"] != false {
-		t.Fatalf("form equal to saved config reported unsaved: %v", res)
+	// Saving exactly the tested values carries the result over.
+	do("PUT", "/api/project/connection?project=demo", typedForm)
+	if got := tracOk(); got != false {
+		t.Fatalf("after saving tested values: tracOk %v, want false", got)
 	}
-	if c := conn(); c["tracOk"] != false {
-		t.Fatalf("saved-values test not remembered: %v", c["tracOk"])
+	// Saving GitLab settings leaves Trac alone.
+	do("PUT", "/api/project/connection?project=demo", `{"gitlabProject":"g/q"}`)
+	if got := tracOk(); got != false {
+		t.Fatalf("gitlab save changed trac result: %v", got)
+	}
+	// Any change to the Trac settings, in the wizard or by hand, means untested.
+	do("PUT", "/api/project/connection?project=demo", `{"tracRpcPath":"/login/xmlrpc"}`)
+	if got := tracOk(); got != nil {
+		t.Fatalf("after changing rpc path: tracOk %v, want untested", got)
 	}
 	do("PUT", "/api/project/connection?project=demo", `{"tracRpcPath":"/xmlrpc"}`)
-	if res := do("POST", "/api/test/trac?project=demo", ""); res["ok"] != false {
-		t.Fatalf("trac test against 401 server: %v", res)
+	if got := tracOk(); got != false {
+		t.Fatalf("back to tested settings: tracOk %v, want false", got)
 	}
-	if c := conn(); c["tracOk"] != false || c["gitlabOk"] != nil {
-		t.Fatalf("after trac test: tracOk %v gitlabOk %v", c["tracOk"], c["gitlabOk"])
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("TRAC_USER=edited-by-hand\n"), 0600); err != nil {
+		t.Fatal(err)
 	}
-	// Saving GitLab settings keeps the Trac result; saving Trac settings clears it.
-	do("PUT", "/api/project/connection?project=demo", `{"gitlabProject":"g/q"}`)
-	if c := conn(); c["tracOk"] != false {
-		t.Fatalf("gitlab save cleared trac result: %v", c["tracOk"])
-	}
-	do("PUT", "/api/project/connection?project=demo", `{"tracRpcPath":"/login/xmlrpc"}`)
-	if c := conn(); c["tracOk"] != nil {
-		t.Fatalf("trac save kept stale result: %v", c["tracOk"])
+	if got := tracOk(); got != nil {
+		t.Fatalf("after hand-editing .env: tracOk %v, want untested", got)
 	}
 }

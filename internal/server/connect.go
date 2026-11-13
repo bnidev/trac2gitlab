@@ -64,7 +64,7 @@ func (s *Server) handleTestTrac(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	t := testRun{s: s, w: w, dir: dir, kind: "trac", unsaved: unsaved}
+	t := testRun{s: s, w: w, dir: dir, kind: "trac", fp: s.tests.fingerprint(&cfg, "trac"), unsaved: unsaved}
 	client, err := trac.NewTracClient(&cfg)
 	if err != nil {
 		t.done(false, err.Error())
@@ -96,7 +96,7 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	t := testRun{s: s, w: w, dir: dir, kind: "gitlab", unsaved: unsaved}
+	t := testRun{s: s, w: w, dir: dir, kind: "gitlab", fp: s.tests.fingerprint(&cfg, "gitlab"), unsaved: unsaved}
 	client, err := gitlab.NewGitLabClient(&cfg)
 	if err != nil {
 		t.done(false, err.Error())
@@ -146,8 +146,8 @@ type connectionForm struct {
 	HasTracGate    bool   `json:"hasTracGatePassword"`
 	HasGitlabGate  bool   `json:"hasGitlabGatePassword"`
 	HasToken       bool   `json:"hasGitlabToken"`
-	TracOK         *bool  `json:"tracOk"`   // last Test Trac result; null when untested since save
-	GitLabOK       *bool  `json:"gitlabOk"` // last Test GitLab result; null when untested since save
+	TracOK         *bool  `json:"tracOk"`   // result for exactly the saved settings; null when never tested
+	GitLabOK       *bool  `json:"gitlabOk"` // result for exactly the saved settings; null when never tested
 }
 
 // handleGetConnection returns the connection form without secrets.
@@ -175,8 +175,8 @@ func (s *Server) handleGetConnection(w http.ResponseWriter, r *http.Request) {
 		HasTracGate:    cfg.Trac.HtaccessPass != "",
 		HasGitlabGate:  cfg.GitLab.HtaccessPass != "",
 		HasToken:       cfg.GitLab.Token != "",
-		TracOK:         s.tests.get(dir, "trac"),
-		GitLabOK:       s.tests.get(dir, "gitlab"),
+		TracOK:         s.tests.lookup(dir, "trac", s.tests.fingerprint(&cfg, "trac")),
+		GitLabOK:       s.tests.lookup(dir, "gitlab", s.tests.fingerprint(&cfg, "gitlab")),
 	})
 }
 
@@ -263,14 +263,6 @@ func (s *Server) handlePutConnection(w http.ResponseWriter, r *http.Request) {
 	if err := mergeDotEnv(filepath.Join(dir, ".env"), env); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	if form.TracBaseURL != "" || form.TracRPCPath != "" || form.TracUser != "" || form.TracPassword != "" ||
-		form.TracGateUser != "" || form.TracGatePass != "" {
-		s.tests.clear(dir, "trac")
-	}
-	if form.GitLabURL != "" || form.GitLabToken != "" || form.GitLabProj != "" ||
-		form.GitlabGateUser != "" || form.GitlabGatePass != "" {
-		s.tests.clear(dir, "gitlab")
 	}
 	s.log(r, "connection saved", "projectDir", dir)
 	writeJSON(w, map[string]any{"ok": true})

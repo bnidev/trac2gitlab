@@ -333,6 +333,29 @@ function preflightService(k, preflight = app.preflight) {
   return mine.every(c => c.state !== "fail");
 }
 
+// Form fields per service, mapped to the saved values from /api/project/connection.
+const SERVICE_FIELDS = {
+  trac: {fTracUrl: "tracBaseUrl", fTracRpc: "tracRpcPath", fTracUser: "tracUser", fTracHtUser: "tracGateUser"},
+  gitlab: {fGitlabUrl: "gitlabUrl", fGitlabProj: "gitlabProject", fGitlabHtUser: "gitlabGateUser"},
+};
+// Secrets are write-only: anything typed is an unsaved change.
+const SERVICE_SECRETS = {trac: ["fTracPass", "fTracHtPass"], gitlab: ["fGitlabToken", "fGitlabHtPass"]};
+
+function isDirty(kind) {
+  if (!app.project) return false;
+  for (const [id, key] of Object.entries(SERVICE_FIELDS[kind])) {
+    if ($(id).value.trim() !== (app.conn[key] || "")) return true;
+  }
+  return SERVICE_SECRETS[kind].some(id => $(id).value !== "");
+}
+
+function anyDirty() { return isDirty("trac") || isDirty("gitlab"); }
+
+// Leaving the project drops typed values, passwords included, so ask first.
+function confirmDiscard() {
+  return !anyDirty() || confirm("Discard unsaved connection changes?");
+}
+
 function setChips() {
   for (const k of ["trac", "gitlab"]) {
     const t = app.tested[k] ?? preflightService(k);
@@ -343,7 +366,12 @@ function setChips() {
     el.textContent = name + (t === true ? " reachable" : t === false ? " failing" : " not tested") + src;
     el.hidden = !app.project;
     const p = $(k === "trac" ? "tracPill" : "gitlabPill");
-    setPill(p, t === true ? "Connected" : t === false ? "Failing" : "Not tested", t === true ? "ok" : t === false ? "fail" : "");
+    const dirty = isDirty(k);
+    if (dirty) setPill(p, "Unsaved changes", "warn");
+    else setPill(p, t === true ? "Connected" : t === false ? "Failing" : "Not tested", t === true ? "ok" : t === false ? "fail" : "");
+    // Save & test leads while there is something to do; once connected with nothing
+    // unsaved it stays available but steps back, so the screen's next action stands out.
+    $(k === "trac" ? "saveTrac" : "saveGitlab").classList.toggle("primary", dirty || app.tested[k] !== true);
   }
   renderConnBanner();
   if (app.project) renderSteps();
@@ -354,10 +382,11 @@ function renderConnBanner() {
   if (!el || !app.project) return;
   const t = app.tested.trac ?? preflightService("trac"), g = app.tested.gitlab ?? preflightService("gitlab");
   const configured = !!(app.conn.tracBaseUrl && app.conn.gitlabUrl && app.conn.gitlabProject);
-  if (!configured) setBanner(el, "", "Connection incomplete", "Fill in the Trac URL, GitLab URL and GitLab project, then save and test each.");
-  else if (t === false || g === false) setBanner(el, "fail", (t === false && g === false ? "Trac and GitLab are" : t === false ? "Trac is" : "GitLab is") + " failing", "Check the URL and credentials below, save, then test again.");
+  if (!configured) setBanner(el, "", "Connection incomplete", "Fill in the Trac URL, GitLab URL and GitLab project, then press Save & test on each.");
+  else if (t === false || g === false) setBanner(el, "fail", (t === false && g === false ? "Trac and GitLab are" : t === false ? "Trac is" : "GitLab is") + " failing", "Check the URL and credentials below, then press Save & test again.");
   else if (t && g) setBanner(el, "ok", "Both connections work", "Continue to the export.");
-  else setBanner(el, "", "Saved, not tested yet", "Test Trac and GitLab to confirm the saved settings.");
+  else if (t || g) setBanner(el, "", (t ? "GitLab" : "Trac") + " not tested yet", "Press Save & test on " + (t ? "GitLab" : "Trac") + " to confirm its settings.");
+  else setBanner(el, "", "Not tested yet", "Press Save & test on Trac and GitLab to confirm the settings.");
 }
 
 const STORED = "Stored. Leave blank to keep.";
@@ -391,7 +420,7 @@ async function loadConnection() {
   $("sTarget").textContent = tgt;
   $("sTarget").title = tgt;
   $("confirmWord").textContent = body.gitlabProject || "the project path";
-  renderConnBanner();
+  setChips();
 }
 
 async function testConnection(kind) {
@@ -408,7 +437,7 @@ async function testConnection(kind) {
       if (body.unsaved) {
         // Only a test of the saved settings counts for the Connect step.
         setNote(el, body.ok ? "warn" : "fail", body.ok
-          ? "Works with the values above: " + body.message + ". Press Save to keep them."
+          ? "Works with the values above: " + body.message + ". Press Save & test to keep them."
           : "With the values above: " + body.message);
       } else {
         app.tested[kind] = !!body.ok;
@@ -417,9 +446,8 @@ async function testConnection(kind) {
     } catch (e) {
       setNote(el, "fail", "Test failed: " + netMessage(e));
     }
-    setChips();
-    renderSteps();
   });
+  setChips();
 }
 
 // The service's fields as typed. Save stores them; Test checks them without storing.
@@ -434,25 +462,27 @@ function servicePayload(kind) {
   };
 }
 
+// Save & test: store the service's fields, then test exactly what was saved,
+// so a passing result counts for the Connect step right away.
 async function saveService(kind) {
   const el = $(kind === "trac" ? "tracTest" : "gitlabTest");
   if (!app.project) return;
   const payload = servicePayload(kind);
-  await busy($(kind === "trac" ? "saveTrac" : "saveGitlab"), "Saving…", async () => {
+  const saved = await busy($(kind === "trac" ? "saveTrac" : "saveGitlab"), "Saving…", async () => {
     try {
       const res = await fetch("/api/project/connection" + q(), {
         method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(await errText(res));
       await loadConnection();
-      app.tested[kind] = null;
-      setChips();
-      setNote(el, "ok", (kind === "trac" ? "Trac" : "GitLab") + " connection saved to migration.yaml and .env. Test it next.");
-      renderSteps();
+      return true;
     } catch (e) {
       setNote(el, "fail", "Save failed: " + netMessage(e));
+      return false;
     }
   });
+  if (saved) await testConnection(kind);
+  setChips();
 }
 
 // ---- Preflight ----
@@ -804,8 +834,15 @@ async function select(name, step) {
 // ---- Wire up ----
 document.addEventListener("DOMContentLoaded", async () => {
   hydrateIcons(document);
-  $("homeLink").addEventListener("click", showHome);
-  $("projectSelect").addEventListener("change", e => (e.target.value ? select(e.target.value) : showHome()));
+  $("homeLink").addEventListener("click", () => { if (confirmDiscard()) showHome(); });
+  $("projectSelect").addEventListener("change", e => {
+    if (!confirmDiscard()) { e.target.value = app.project || ""; return; }
+    if (e.target.value) select(e.target.value); else showHome();
+  });
+  for (const kind of ["trac", "gitlab"]) {
+    for (const id of [...Object.keys(SERVICE_FIELDS[kind]), ...SERVICE_SECRETS[kind]]) $(id).addEventListener("input", setChips);
+  }
+  window.addEventListener("beforeunload", e => { if (anyDirty()) e.preventDefault(); });
   $("showCreate").addEventListener("click", () => { $("createForm").hidden = false; $("newProject").focus(); });
   $("cancelCreate").addEventListener("click", () => { $("createForm").hidden = true; $("createError").hidden = true; });
   $("createForm").addEventListener("submit", createProject);
