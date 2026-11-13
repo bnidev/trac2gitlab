@@ -400,13 +400,22 @@ async function testConnection(kind) {
   const btn = $(kind === "trac" ? "testTrac" : "testGitlab");
   await busy(btn, "Testing…", async () => {
     try {
-      const res = await fetch("/api/test/" + kind + q(), {method: "POST"});
+      const res = await fetch("/api/test/" + kind + q(), {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(servicePayload(kind)),
+      });
       if (!res.ok) throw new Error(await errText(res));
       const body = await res.json();
-      app.tested[kind] = !!body.ok;
-      setNote(el, body.ok ? "ok" : "fail", body.message);
+      const name = kind === "trac" ? "Trac" : "GitLab";
+      if (body.unsaved) {
+        // Only a test of the saved settings counts for the Connect step.
+        setNote(el, body.ok ? "warn" : "fail", body.ok
+          ? "Works with the values above: " + body.message + ". Press Save " + name + " to keep them."
+          : "With the values above: " + body.message);
+      } else {
+        app.tested[kind] = !!body.ok;
+        setNote(el, body.ok ? "ok" : "fail", body.message);
+      }
     } catch (e) {
-      app.tested[kind] = false;
       setNote(el, "fail", "Test failed: " + netMessage(e));
     }
     setChips();
@@ -414,17 +423,22 @@ async function testConnection(kind) {
   });
 }
 
-async function saveService(kind) {
-  const el = $(kind === "trac" ? "tracTest" : "gitlabTest");
-  if (!app.project) return;
+// The service's fields as typed. Save stores them; Test checks them without storing.
+function servicePayload(kind) {
   const v = id => $(id).value;
-  const payload = kind === "trac" ? {
+  return kind === "trac" ? {
     tracBaseUrl: v("fTracUrl"), tracRpcPath: v("fTracRpc"), tracUser: v("fTracUser"),
     tracPassword: v("fTracPass"), tracGateUser: v("fTracHtUser"), tracGatePass: v("fTracHtPass"),
   } : {
     gitlabUrl: v("fGitlabUrl"), gitlabToken: v("fGitlabToken"), gitlabProject: v("fGitlabProj"),
     gitlabGateUser: v("fGitlabHtUser"), gitlabGatePass: v("fGitlabHtPass"),
   };
+}
+
+async function saveService(kind) {
+  const el = $(kind === "trac" ? "tracTest" : "gitlabTest");
+  if (!app.project) return;
+  const payload = servicePayload(kind);
   await busy($(kind === "trac" ? "saveTrac" : "saveGitlab"), "Saving…", async () => {
     try {
       const res = await fetch("/api/project/connection" + q(), {

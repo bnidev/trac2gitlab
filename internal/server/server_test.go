@@ -560,6 +560,30 @@ func TestConnectionTestResultsPersistUntilSave(t *testing.T) {
 	if c := conn(); c["tracOk"] != nil || c["gitlabOk"] != nil {
 		t.Fatalf("untested project reports results: %v / %v", c["tracOk"], c["gitlabOk"])
 	}
+	// Test with an unsaved URL contacts that URL and is not remembered.
+	typedHits := 0
+	typed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		typedHits++
+		http.Error(w, "nope", http.StatusUnauthorized)
+	}))
+	defer typed.Close()
+	if res := do("POST", "/api/test/trac?project=demo", `{"tracBaseUrl":"`+typed.URL+`"}`); res["unsaved"] != true || res["ok"] != false {
+		t.Fatalf("unsaved test: %v", res)
+	}
+	if typedHits == 0 {
+		t.Fatal("unsaved test did not contact the typed URL")
+	}
+	if c := conn(); c["tracOk"] != nil {
+		t.Fatalf("unsaved test result was remembered: %v", c["tracOk"])
+	}
+	// The form matching the saved values counts as a saved test.
+	if res := do("POST", "/api/test/trac?project=demo", `{"tracBaseUrl":"`+trac.URL+`"}`); res["unsaved"] != false {
+		t.Fatalf("form equal to saved config reported unsaved: %v", res)
+	}
+	if c := conn(); c["tracOk"] != false {
+		t.Fatalf("saved-values test not remembered: %v", c["tracOk"])
+	}
+	do("PUT", "/api/project/connection?project=demo", `{"tracRpcPath":"/xmlrpc"}`)
 	if res := do("POST", "/api/test/trac?project=demo", ""); res["ok"] != false {
 		t.Fatalf("trac test against 401 server: %v", res)
 	}

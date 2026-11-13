@@ -47,9 +47,11 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"name": name})
 }
 
-// handleTestTrac checks the stored Trac connection: expected XML-RPC
-// methods plus plugin version. A failed connection is a normal answer,
-// so this returns 200 with ok:false instead of an error status.
+// handleTestTrac checks the Trac connection: expected XML-RPC methods plus
+// plugin version. An optional JSON connectionForm body overlays unsaved form
+// values on the saved config, so Test checks what the user typed without
+// writing it. A failed connection is a normal answer, so this returns 200
+// with ok:false instead of an error status.
 func (s *Server) handleTestTrac(w http.ResponseWriter, r *http.Request) {
 	dir := ResolveProject(s.Root, r.URL.Query().Get("project"))
 	cfg, err := config.LoadProject(dir)
@@ -57,25 +59,31 @@ func (s *Server) handleTestTrac(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	unsaved, err := overlayForm(r, &cfg, "trac")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	t := testRun{s: s, w: w, dir: dir, kind: "trac", unsaved: unsaved}
 	client, err := trac.NewTracClient(&cfg)
 	if err != nil {
-		s.writeTest(w, dir, "trac", false, err.Error())
+		t.done(false, err.Error())
 		return
 	}
 	if err := client.ValidateExpectedMethods(); err != nil {
-		s.writeTest(w, dir, "trac", false, withAuthHint(err.Error(), "check TRAC_USER/TRAC_PASSWORD in .env"))
+		t.done(false, withAuthHint(err.Error(), "check TRAC_USER/TRAC_PASSWORD in .env"))
 		return
 	}
 	msg := "expected methods ok"
 	if err := client.ValidatePluginVersion(); err != nil {
-		s.writeTest(w, dir, "trac", true, msg+"; plugin: "+err.Error())
+		t.done(true, msg+"; plugin: "+err.Error())
 		return
 	}
-	s.writeTest(w, dir, "trac", true, msg+" + plugin version ok")
+	t.done(true, msg+" + plugin version ok")
 }
 
-// handleTestGitLab checks the stored GitLab connection: client, version,
-// project resolution.
+// handleTestGitLab checks the GitLab connection: client, version, project
+// resolution. Takes the same optional form overlay as handleTestTrac.
 func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 	dir := ResolveProject(s.Root, r.URL.Query().Get("project"))
 	cfg, err := config.LoadProject(dir)
@@ -83,13 +91,19 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	unsaved, err := overlayForm(r, &cfg, "gitlab")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	t := testRun{s: s, w: w, dir: dir, kind: "gitlab", unsaved: unsaved}
 	client, err := gitlab.NewGitLabClient(&cfg)
 	if err != nil {
-		s.writeTest(w, dir, "gitlab", false, err.Error())
+		t.done(false, err.Error())
 		return
 	}
 	if err := client.ValidateGitLab(); err != nil {
-		s.writeTest(w, dir, "gitlab", false, withAuthHint(err.Error(), "check GITLAB_TOKEN in .env"))
+		t.done(false, withAuthHint(err.Error(), "check GITLAB_TOKEN in .env"))
 		return
 	}
 	ref := any(cfg.GitLab.ProjectID)
@@ -98,10 +112,10 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 	}
 	project, err := client.GetProject(ref)
 	if err != nil {
-		s.writeTest(w, dir, "gitlab", false, err.Error())
+		t.done(false, err.Error())
 		return
 	}
-	s.writeTest(w, dir, "gitlab", true, "project "+project.PathWithNamespace)
+	t.done(true, "project "+project.PathWithNamespace)
 }
 
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
