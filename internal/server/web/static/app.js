@@ -405,11 +405,10 @@ async function testConnection(kind) {
       });
       if (!res.ok) throw new Error(await errText(res));
       const body = await res.json();
-      const name = kind === "trac" ? "Trac" : "GitLab";
       if (body.unsaved) {
         // Only a test of the saved settings counts for the Connect step.
         setNote(el, body.ok ? "warn" : "fail", body.ok
-          ? "Works with the values above: " + body.message + ". Press Save " + name + " to keep them."
+          ? "Works with the values above: " + body.message + ". Press Save to keep them."
           : "With the values above: " + body.message);
       } else {
         app.tested[kind] = !!body.ok;
