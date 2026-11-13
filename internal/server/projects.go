@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Project summarizes one migration workspace on disk.
@@ -13,6 +15,7 @@ type Project struct {
 	Dir           string `json:"-"`
 	HasConfig     bool   `json:"hasConfig"`
 	HasState      bool   `json:"hasState"`
+	HasExport     bool   `json:"hasExport"`
 	HasPreflight  bool   `json:"hasPreflight"`
 	HasValidation bool   `json:"hasValidation"`
 }
@@ -44,6 +47,7 @@ func ListProjects(root string) []Project {
 			Dir:           abs,
 			HasConfig:     hasFile(dir, "migration.yaml") || hasFile(dir, "config.yaml"),
 			HasState:      hasFile(dir, "state", "migration.yaml"),
+			HasExport:     hasExport(dir),
 			HasPreflight:  hasFile(dir, "reports", "preflight.md"),
 			HasValidation: hasFile(dir, "reports", "validation.md"),
 		})
@@ -98,4 +102,30 @@ func ResolveProject(root, name string) string {
 func hasFile(dir string, parts ...string) bool {
 	_, err := os.Stat(filepath.Join(append([]string{dir}, parts...)...))
 	return err == nil
+}
+
+// hasExport reports whether the project's export directory (export_options.
+// export_dir, default data/) exists and holds anything. It reads the config
+// file directly: config.LoadProject would load .env into the server process.
+func hasExport(dir string) bool {
+	var cfg struct {
+		ExportOptions struct {
+			ExportDir string `yaml:"export_dir"`
+		} `yaml:"export_options"`
+	}
+	for _, name := range []string{"migration.yaml", "config.yaml"} {
+		if b, err := os.ReadFile(filepath.Join(dir, name)); err == nil {
+			_ = yaml.Unmarshal(b, &cfg)
+			break
+		}
+	}
+	exportDir := cfg.ExportOptions.ExportDir
+	if exportDir == "" {
+		exportDir = "data"
+	}
+	if !filepath.IsAbs(exportDir) {
+		exportDir = filepath.Join(dir, exportDir)
+	}
+	entries, err := os.ReadDir(exportDir)
+	return err == nil && len(entries) > 0
 }

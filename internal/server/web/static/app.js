@@ -156,7 +156,7 @@ function stepState() {
   const p = app.projects.find(x => x.name === app.project) || {};
   return {
     connect: !!(app.conn.tracBaseUrl && app.conn.gitlabUrl && app.conn.gitlabProject),
-    export: !!app.users?.exists || jobDone("export"),
+    export: !!p.hasExport || jobDone("export"),
     identities: !!app.users?.exists && !!app.users?.users?.length && app.users.users.every(u => u.resolved),
     preflight: pre === "ok" || pre === "warn",
     dryrun: (ran && app.status?.DryRun && app.status.Status === "completed") || jobDone("dry-run") || executed,

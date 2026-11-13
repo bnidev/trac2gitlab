@@ -482,3 +482,44 @@ func TestDiscoverRunWritesUsersOnce(t *testing.T) {
 		t.Fatalf("second discover status %d, want 409", rec.Code)
 	}
 }
+
+func TestHasExport(t *testing.T) {
+	cases := []struct {
+		name   string
+		config string
+		files  []string // relative to the project dir
+		want   bool
+	}{
+		{"no data dir", "general:\n  log_level: info\n", nil, false},
+		{"empty data dir", "general:\n  log_level: info\n", []string{"data/"}, false},
+		{"default data dir", "general:\n  log_level: info\n", []string{"data/ticket-fields.json"}, true},
+		{"custom export dir", "export_options:\n  export_dir: out\n", []string{"out/ticket-fields.json"}, true},
+		{"custom dir ignores data", "export_options:\n  export_dir: out\n", []string{"data/ticket-fields.json"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte(tc.config), 0644); err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range tc.files {
+				p := filepath.Join(dir, f)
+				if strings.HasSuffix(f, "/") {
+					if err := os.MkdirAll(p, 0755); err != nil {
+						t.Fatal(err)
+					}
+					continue
+				}
+				if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(p, []byte("{}"), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := hasExport(dir); got != tc.want {
+				t.Fatalf("hasExport = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
