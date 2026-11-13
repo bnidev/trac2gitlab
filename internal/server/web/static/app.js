@@ -147,26 +147,46 @@ const app = {
   userFilter: "all",
 };
 
-function stepState() {
-  const pre = kindOf(app.preflight?.verdict);
-  const phases = app.status?.Phases || {};
+// c is app for the open project, or a per-project context built by projectOverview.
+function stepState(c = app) {
+  const pre = kindOf(c.preflight?.verdict);
+  const phases = c.status?.Phases || {};
   const ran = Object.keys(phases).length > 0;
-  const jobDone = kind => app.job && app.job.kind === kind && app.job.status === "completed";
-  const executed = ran && app.status && !app.status.DryRun && app.status.Status === "completed";
-  const p = app.projects.find(x => x.name === app.project) || {};
+  const jobDone = kind => c.job && c.job.kind === kind && c.job.status === "completed";
+  const executed = ran && c.status && !c.status.DryRun && c.status.Status === "completed";
+  const p = c.projects.find(x => x.name === c.project) || {};
   return {
-    connect: !!(app.conn.tracBaseUrl && app.conn.gitlabUrl && app.conn.gitlabProject),
+    connect: !!(c.conn.tracBaseUrl && c.conn.gitlabUrl && c.conn.gitlabProject),
     export: !!p.hasExport || jobDone("export"),
-    identities: !!app.users?.exists && !!app.users?.users?.length && app.users.users.every(u => u.resolved),
+    identities: !!c.users?.exists && !!c.users?.users?.length && c.users.users.every(u => u.resolved),
     preflight: pre === "ok" || pre === "warn",
-    dryrun: (ran && app.status?.DryRun && app.status.Status === "completed") || jobDone("dry-run") || executed,
+    dryrun: (ran && c.status?.DryRun && c.status.Status === "completed") || jobDone("dry-run") || executed,
     execute: executed || jobDone("execute"),
     finish: !!p.hasValidation,
     preflightOk: pre === "ok" || pre === "warn",
-    preflightKind: app.preflight?.exists ? pre : "",
-    unresolved: (app.users?.users || []).filter(u => !u.resolved).length,
-    connFail: (app.tested.trac ?? preflightService("trac")) === false || (app.tested.gitlab ?? preflightService("gitlab")) === false,
+    preflightKind: c.preflight?.exists ? pre : "",
+    unresolved: (c.users?.users || []).filter(u => !u.resolved).length,
+    connFail: (c.tested.trac ?? preflightService("trac", c.preflight)) === false || (c.tested.gitlab ?? preflightService("gitlab", c.preflight)) === false,
   };
+}
+
+// How the stepper shows one step: done, fail, warn or plain, plus the risk line.
+function stepVisual(st, s, c = app) {
+  let state = st[s.id] ? "done" : "";
+  let risk = s.risk;
+  if (s.id === "preflight" && st.preflightKind === "fail") { state = "fail"; risk = "NOT READY"; }
+  if (s.id === "preflight" && st.preflightKind === "warn") { state = "warn"; risk = "READY WITH WARNINGS"; }
+  if (s.id === "connect" && st.connFail) { state = "fail"; risk = "Connection failing"; }
+  if (s.id === "identities" && st.unresolved && c.users?.exists) { state = "warn"; risk = st.unresolved + " unresolved"; }
+  return {state, risk};
+}
+
+// The step a project stopped at: the first one not done. Home and Open both use it.
+function currentStep(c = app) {
+  const st = stepState(c);
+  const i = STEPS.findIndex(s => stepVisual(st, s, c).state !== "done");
+  const step = i < 0 ? STEPS.length - 1 : i;
+  return {step, kind: i < 0 ? "ok" : stepVisual(st, STEPS[step], c).state};
 }
 
 function renderSteps() {
@@ -175,12 +195,7 @@ function renderSteps() {
   nav.innerHTML = "";
   STEPS.forEach((s, i) => {
     const locked = (s.id === "execute" && !st.preflightOk) || (s.id === "finish" && !st.execute && !st.finish);
-    let state = st[s.id] ? "done" : "";
-    let risk = s.risk;
-    if (s.id === "preflight" && st.preflightKind === "fail") { state = "fail"; risk = "NOT READY"; }
-    if (s.id === "preflight" && st.preflightKind === "warn") { state = "warn"; risk = "READY WITH WARNINGS"; }
-    if (s.id === "connect" && st.connFail) { state = "fail"; risk = "Connection failing"; }
-    if (s.id === "identities" && st.unresolved && app.users?.exists) { state = "warn"; risk = st.unresolved + " unresolved"; }
+    const {state, risk} = stepVisual(st, s);
     const isCur = s.id === app.step;
     const b = document.createElement("button");
     b.type = "button";
@@ -215,7 +230,6 @@ function showStep(id) {
   $("sNext").textContent = STEPS.find(s => s.id === id).next;
   renderSteps();
   if (id === "execute") renderGate();
-  try { localStorage.setItem("t2g.step." + app.project, id); } catch { /* storage unavailable */ }
   history.replaceState(null, "", "#/" + encodeURIComponent(app.project) + "/" + id);
   window.scrollTo({top: 0});
 }
@@ -247,16 +261,19 @@ async function loadProjects() {
 
 async function projectOverview(p) {
   const pq = "?project=" + encodeURIComponent(p.name);
-  const [conn, pre, job] = await Promise.all([
+  const [conn, preflight, job, users, runState] = await Promise.all([
     getJSON("/api/project/connection" + pq).catch(() => ({})),
     getJSON("/api/preflight" + pq).catch(() => ({})),
     getJSON("/api/job" + pq).catch(() => ({})),
+    getJSON("/api/users" + pq).catch(() => ({})),
+    getJSON("/api/status" + pq).catch(() => ({})),
   ]);
-  let step = 0, status = "Not configured", kind = "";
-  if (conn.tracBaseUrl && conn.gitlabUrl) { step = 1; status = "Connected"; }
-  if (p.hasPreflight) { step = 3; status = pre.verdict || "Preflight run"; kind = kindOf(pre.verdict); }
-  if (p.hasState) { step = Math.max(step, 4); }
-  if (p.hasValidation) { step = 6; status = "Validated"; kind = "ok"; }
+  const ctx = {project: p.name, projects: app.projects, conn, preflight, job, users, status: runState, tested: {trac: null, gitlab: null}};
+  let {step, kind} = currentStep(ctx);
+  let status = "Not configured";
+  if (conn.tracBaseUrl && conn.gitlabUrl) status = "Connected";
+  if (p.hasPreflight) { status = preflight.verdict || "Preflight run"; kind = kind || kindOf(preflight.verdict); }
+  if (p.hasValidation) { status = "Validated"; kind = "ok"; }
   if (job && job.status === "running") { status = titleCase(job.kind) + " running"; kind = "run"; }
   else if (job && job.status === "failed") { status = titleCase(job.kind) + " failed"; kind = "fail"; }
   return {p, conn, step, status, kind};
@@ -271,7 +288,7 @@ async function renderHome() {
   }
   const rows = await Promise.all(app.projects.map(projectOverview));
   const count = k => rows.filter(r => r.kind === k).length;
-  $("homeStats").innerHTML = [[rows.length, rows.length === 1 ? "project" : "projects"], [count("warn") + count("fail"), "need attention"], [count("run"), "running"], [rows.filter(r => r.step === 6).length, "validated"]]
+  $("homeStats").innerHTML = [[rows.length, rows.length === 1 ? "project" : "projects"], [count("warn") + count("fail"), "need attention"], [count("run"), "running"], [rows.filter(r => r.p.hasValidation).length, "validated"]]
     .map(([n, l]) => "<div><b>" + n + "</b>" + l + "</div>").join("");
   body.innerHTML = rows.map(r => {
     const segs = STEPS.map((s, i) => '<i class="' + (i < r.step ? "done" : i === r.step ? (r.kind || "") : "") + '"></i>').join("");
@@ -305,8 +322,8 @@ async function createProject(ev) {
 }
 
 // ---- Connection ----
-function preflightService(k) {
-  const checks = app.preflight?.checks || [];
+function preflightService(k, preflight = app.preflight) {
+  const checks = preflight?.checks || [];
   const mine = checks.filter(c => new RegExp(k === "trac" ? "trac" : "gitlab", "i").test(c.name));
   if (!mine.length) return null;
   return mine.every(c => c.state !== "fail");
@@ -762,14 +779,7 @@ async function select(name, step) {
   } catch (e) {
     setBanner($("verdict"), "fail", "Could not load project", netMessage(e));
   }
-  let saved = null;
-  try { saved = localStorage.getItem("t2g.step." + name); } catch { /* storage unavailable */ }
-  showStep(step || (STEPS.some(s => s.id === saved) ? saved : firstOpenStep()));
-}
-
-function firstOpenStep() {
-  const st = stepState();
-  return (STEPS.find(s => !st[s.id]) || STEPS[STEPS.length - 1]).id;
+  showStep(step || STEPS[currentStep().step].id);
 }
 
 // ---- Wire up ----
