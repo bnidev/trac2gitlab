@@ -86,16 +86,61 @@ func TestFindConfigPrefersMigration(t *testing.T) {
 	}
 }
 
-func TestLoadDotEnvDoesNotOverride(t *testing.T) {
+func TestDotEnvDoesNotOverrideEnv(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")
-	if err := os.WriteFile(path, []byte("T2G_TEST_KEY=from-file\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("T2G_TEST_KEY=from-file\nT2G_TEST_ONLY_FILE='quoted'\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("T2G_TEST_KEY", "from-env")
-	loadDotEnv(path)
-	if got := os.Getenv("T2G_TEST_KEY"); got != "from-env" {
-		t.Fatalf("loadDotEnv overrode existing env: %q", got)
+	getenv := envWithDotEnv(readDotEnv(path))
+	if got := getenv("T2G_TEST_KEY"); got != "from-env" {
+		t.Fatalf(".env overrode existing env: %q", got)
+	}
+	if got := getenv("T2G_TEST_ONLY_FILE"); got != "quoted" {
+		t.Fatalf("value from .env = %q, want quoted", got)
+	}
+	if _, set := os.LookupEnv("T2G_TEST_ONLY_FILE"); set {
+		t.Fatal("readDotEnv wrote to the process environment")
+	}
+}
+
+// The wizard server loads many projects in one process; one project's .env
+// must not leak into another.
+func TestLoadProjectIsolatesDotEnv(t *testing.T) {
+	root := t.TempDir()
+	withEnv, bare := filepath.Join(root, "a"), filepath.Join(root, "b")
+	for _, dir := range []string{withEnv, bare} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte("gitlab:\n  project: g/p\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(withEnv, ".env"), []byte("GITLAB_TOKEN=secret-a\nTRAC_USER=alice\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"GITLAB_TOKEN", "TRAC_USER"} {
+		t.Setenv(key, "") // restores the original value after the test
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	a, err := LoadProject(withEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.GitLab.Token != "secret-a" || a.Trac.Username != "alice" {
+		t.Fatalf("project a: token %q user %q", a.GitLab.Token, a.Trac.Username)
+	}
+	b, err := LoadProject(bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.GitLab.Token != "" || b.Trac.Username != "" {
+		t.Fatalf("project b inherited project a's .env: token %q user %q", b.GitLab.Token, b.Trac.Username)
 	}
 }
 

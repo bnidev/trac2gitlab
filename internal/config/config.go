@@ -137,7 +137,7 @@ func LoadConfig() (Config, error) {
 // <dir>/config.yaml. <dir>/.env is loaded first; existing environment
 // variables win. Relative export/users paths are resolved against <dir>.
 func LoadProject(projectDir string) (Config, error) {
-	loadDotEnv(filepath.Join(projectDir, ".env"))
+	getenv := envWithDotEnv(readDotEnv(filepath.Join(projectDir, ".env")))
 
 	path, err := findConfig(projectDir)
 	if err != nil {
@@ -158,7 +158,7 @@ func LoadProject(projectDir string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
-	applyEnv(&cfg)
+	applyEnv(&cfg, getenv)
 	normalize(&cfg, projectDir)
 	warnIncomplete(&cfg)
 
@@ -175,35 +175,35 @@ func findConfig(projectDir string) (string, error) {
 	return "", fmt.Errorf("no migration.yaml or config.yaml in %q", projectDir)
 }
 
-func applyEnv(cfg *Config) {
-	if v := os.Getenv("TRAC_URL"); v != "" {
+func applyEnv(cfg *Config, getenv func(string) string) {
+	if v := getenv("TRAC_URL"); v != "" {
 		cfg.Trac.BaseURL = v
 	}
 	if cfg.Trac.BaseURL == "" {
 		cfg.Trac.BaseURL = cfg.Trac.URL
 	}
 	cfg.Trac.BaseURL = strings.TrimRight(cfg.Trac.BaseURL, "/")
-	cfg.Trac.Username = os.Getenv("TRAC_USER")
-	cfg.Trac.Password = os.Getenv("TRAC_PASSWORD")
-	cfg.Trac.HtaccessUser = os.Getenv("TRAC_HTACCESS_USER")
-	cfg.Trac.HtaccessPass = os.Getenv("TRAC_HTACCESS_PASSWORD")
+	cfg.Trac.Username = getenv("TRAC_USER")
+	cfg.Trac.Password = getenv("TRAC_PASSWORD")
+	cfg.Trac.HtaccessUser = getenv("TRAC_HTACCESS_USER")
+	cfg.Trac.HtaccessPass = getenv("TRAC_HTACCESS_PASSWORD")
 
-	if v := firstEnv("GITLAB_URL", "GITLAB_HOST"); v != "" {
+	if v := firstEnv(getenv, "GITLAB_URL", "GITLAB_HOST"); v != "" {
 		cfg.GitLab.BaseURL = v
 	}
 	if cfg.GitLab.BaseURL != "" && !strings.Contains(cfg.GitLab.BaseURL, "://") {
 		cfg.GitLab.BaseURL = "https://" + cfg.GitLab.BaseURL
 	}
 	cfg.GitLab.BaseURL = strings.TrimRight(cfg.GitLab.BaseURL, "/")
-	if v := os.Getenv("GITLAB_TOKEN"); v != "" {
+	if v := getenv("GITLAB_TOKEN"); v != "" {
 		cfg.GitLab.Token = v
 	}
-	cfg.GitLab.HtaccessUser = os.Getenv("GITLAB_HTACCESS_USER")
-	cfg.GitLab.HtaccessPass = os.Getenv("GITLAB_HTACCESS_PASSWORD")
-	if v := os.Getenv("GITLAB_PROJECT"); v != "" {
+	cfg.GitLab.HtaccessUser = getenv("GITLAB_HTACCESS_USER")
+	cfg.GitLab.HtaccessPass = getenv("GITLAB_HTACCESS_PASSWORD")
+	if v := getenv("GITLAB_PROJECT"); v != "" {
 		cfg.GitLab.Project = v
 	}
-	if v := os.Getenv("GITLAB_PROJECT_ID"); v != "" {
+	if v := getenv("GITLAB_PROJECT_ID"); v != "" {
 		if id, err := strconv.Atoi(v); err == nil {
 			cfg.GitLab.ProjectID = id
 		}
@@ -271,19 +271,23 @@ func warnIncomplete(cfg *Config) {
 	}
 }
 
-func firstEnv(keys ...string) string {
+func firstEnv(getenv func(string) string, keys ...string) string {
 	for _, key := range keys {
-		if v := os.Getenv(key); v != "" {
+		if v := getenv(key); v != "" {
 			return v
 		}
 	}
 	return ""
 }
 
-func loadDotEnv(path string) {
+// readDotEnv parses a project's .env into a map. It never touches the process
+// environment: the wizard server loads many projects in one process, and
+// os.Setenv would leak one project's credentials into the next.
+func readDotEnv(path string) map[string]string {
+	env := map[string]string{}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return
+		return env
 	}
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
@@ -294,14 +298,19 @@ func loadDotEnv(path string) {
 		if !ok {
 			continue
 		}
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		value = strings.Trim(value, `"'`)
-		if _, exists := os.LookupEnv(key); !exists {
-			if err := os.Setenv(key, value); err != nil {
-				slog.Warn("Failed to set environment variable from .env", "key", key, "error", err)
-			}
+		env[strings.TrimSpace(key)] = strings.Trim(strings.TrimSpace(value), `"'`)
+	}
+	return env
+}
+
+// envWithDotEnv looks a key up in the real environment first, then in the
+// project's .env, matching the old "existing variables win" rule.
+func envWithDotEnv(dotenv map[string]string) func(string) string {
+	return func(key string) string {
+		if v, ok := os.LookupEnv(key); ok {
+			return v
 		}
+		return dotenv[key]
 	}
 }
 
