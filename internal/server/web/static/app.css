@@ -320,3 +320,10 @@ details[open] summary{margin-bottom:10px}
   .gate .actions .grow{display:none}
   .gate .actions .btn{flex:1 1 100%;justify-content:center}
 }
+
+/* No programming ligatures in mono text. JetBrains Mono joins "//" into one glyph, and while
+   typing in an input Chromium repaints only part of it, so "https://" showed as "https: /".
+   URLs, paths and IDs should read character by character anyway. Kept last so the font
+   shorthands above cannot reset it. */
+code,.mono,.input,.code,.log,.kv dd,.proj-name,.table .num,.counts .stat b{
+  font-variant-ligatures:none;font-feature-settings:"calt" 0,"liga" 0}
