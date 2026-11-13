@@ -590,7 +590,8 @@ function renderJob() {
   const title = titleCase(job.kind) + " " + job.status;
   const detail = job.error || (job.status === "running" ? "Job " + job.id + " is running. This page updates every 2 seconds." : "Job " + job.id);
   if (job.kind === "export") setBanner($("exportVerdict"), kind, title, detail);
-  if (job.kind === "dry-run" || job.kind === "validate") setBanner($("jobStatus"), kind, title, detail);
+  if (job.kind === "dry-run") setBanner($("jobStatus"), kind, title, detail);
+  if (job.kind === "validate") setNote($("valVerdict"), kind, title + ". " + detail);
   if (job.kind === "execute") setNote($("executeVerdict"), kind, title + ". " + detail);
 }
 
@@ -715,6 +716,9 @@ async function loadPatch() {
       setNote($("patchVerdict"), apply ? "fail" : un.length ? "warn" : "ok",
         body.rows + " rows. " + mode + (un.length ? " " + un.length + " unresolved skipped: " + un.join(", ") + "." : ""));
     } catch (e) {
+      $("patchShell").textContent = "No script generated. See the error below.";
+      window.patchShell = null;
+      $("copyPatch").disabled = true;
       setNote($("patchVerdict"), "fail", "Patch unavailable: " + netMessage(e));
     }
   });
@@ -738,7 +742,7 @@ async function select(name, step) {
   $("projectSelect").value = name;
   $("sProject").textContent = "projects/" + name;
   document.querySelectorAll(".pdir").forEach(el => { el.textContent = "projects/" + name + "/"; });
-  for (const id of ["tracTest", "gitlabTest", "executeVerdict", "patchVerdict"]) $(id).hidden = true;
+  for (const id of ["tracTest", "gitlabTest", "executeVerdict", "patchVerdict", "valVerdict"]) $(id).hidden = true;
   setBanner($("exportVerdict"), "", "No export job in this session", "Run the export after the Trac connection tests green.");
   setBanner($("jobStatus"), "", "No dry-run job in this session", "Run it after preflight to see what Execute will create.");
   $("patchShell").textContent = "Press “Generate script” to build the patch for this project.";
@@ -797,7 +801,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("runDryRun").addEventListener("click", () => startRun("/api/migrate/dry-run", $("runDryRun"),
     m => setBanner($("jobStatus"), "fail", "Dry-run failed to start", m)));
   $("runValidate").addEventListener("click", () => startRun("/api/validate/run", $("runValidate"),
-    m => setBanner($("valBanner"), "fail", "Validate failed to start", m)));
+    m => setNote($("valVerdict"), "fail", "Validate failed to start. " + m)));
   $("confirmExecute").addEventListener("input", updateExecuteButton);
   $("runExecute").addEventListener("click", runExecute);
   $("modeDry").addEventListener("click", () => setPatchMode(false));
