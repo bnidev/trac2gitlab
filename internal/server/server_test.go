@@ -523,3 +523,56 @@ func TestHasExport(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectionTestResultsPersistUntilSave(t *testing.T) {
+	trac := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusUnauthorized)
+	}))
+	defer trac.Close()
+	root := t.TempDir()
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := "trac:\n  base_url: " + trac.URL + "\n  rpc_path: /xmlrpc\ngitlab:\n  base_url: https://gitlab.invalid\n  project: g/p\n"
+	if err := os.WriteFile(filepath.Join(dir, "migration.yaml"), []byte(cfg), 0644); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	do := func(method, path, body string) map[string]any {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(method, path, strings.NewReader(body)))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s %s: %d %s", method, path, rec.Code, rec.Body.String())
+		}
+		var out map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	conn := func() map[string]any { return do("GET", "/api/project/connection?project=demo", "") }
+
+	if c := conn(); c["tracOk"] != nil || c["gitlabOk"] != nil {
+		t.Fatalf("untested project reports results: %v / %v", c["tracOk"], c["gitlabOk"])
+	}
+	if res := do("POST", "/api/test/trac?project=demo", ""); res["ok"] != false {
+		t.Fatalf("trac test against 401 server: %v", res)
+	}
+	if c := conn(); c["tracOk"] != false || c["gitlabOk"] != nil {
+		t.Fatalf("after trac test: tracOk %v gitlabOk %v", c["tracOk"], c["gitlabOk"])
+	}
+	// Saving GitLab settings keeps the Trac result; saving Trac settings clears it.
+	do("PUT", "/api/project/connection?project=demo", `{"gitlabProject":"g/q"}`)
+	if c := conn(); c["tracOk"] != false {
+		t.Fatalf("gitlab save cleared trac result: %v", c["tracOk"])
+	}
+	do("PUT", "/api/project/connection?project=demo", `{"tracRpcPath":"/login/xmlrpc"}`)
+	if c := conn(); c["tracOk"] != nil {
+		t.Fatalf("trac save kept stale result: %v", c["tracOk"])
+	}
+}

@@ -25,6 +25,7 @@ type Server struct {
 	Root   string
 	Logger *slog.Logger
 	Jobs   *Jobs
+	tests  *connTests
 	tmpl   *template.Template
 	mux    *http.ServeMux
 }
@@ -36,7 +37,7 @@ func New(root string, logger *slog.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{Root: root, Logger: logger, Jobs: NewJobs(), tmpl: tmpl, mux: http.NewServeMux()}
+	s := &Server{Root: root, Logger: logger, Jobs: NewJobs(), tests: newConnTests(), tmpl: tmpl, mux: http.NewServeMux()}
 	s.routes()
 	return s, nil
 }

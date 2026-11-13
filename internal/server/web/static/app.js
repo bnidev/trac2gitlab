@@ -156,7 +156,10 @@ function stepState(c = app) {
   const executed = ran && c.status && !c.status.DryRun && c.status.Status === "completed";
   const p = c.projects.find(x => x.name === c.project) || {};
   return {
-    connect: !!(c.conn.tracBaseUrl && c.conn.gitlabUrl && c.conn.gitlabProject),
+    // Connected means both services are known good: a Test button result, else preflight's checks.
+    connect: !!(c.conn.tracBaseUrl && c.conn.gitlabUrl && c.conn.gitlabProject) &&
+      (c.tested.trac ?? preflightService("trac", c.preflight)) === true &&
+      (c.tested.gitlab ?? preflightService("gitlab", c.preflight)) === true,
     export: !!p.hasExport || jobDone("export"),
     identities: !!c.users?.exists && !!c.users?.users?.length && c.users.users.every(u => u.resolved),
     preflight: pre === "ok" || pre === "warn",
@@ -176,6 +179,7 @@ function stepVisual(st, s, c = app) {
   let risk = s.risk;
   if (s.id === "preflight" && st.preflightKind === "fail") { state = "fail"; risk = "NOT READY"; }
   if (s.id === "preflight" && st.preflightKind === "warn") { state = "warn"; risk = "READY WITH WARNINGS"; }
+  if (s.id === "connect" && !state) risk = c.conn.tracBaseUrl && c.conn.gitlabUrl && c.conn.gitlabProject ? "Not tested" : "Not configured";
   if (s.id === "connect" && st.connFail) { state = "fail"; risk = "Connection failing"; }
   if (s.id === "identities" && st.unresolved && c.users?.exists) { state = "warn"; risk = st.unresolved + " unresolved"; }
   return {state, risk};
@@ -268,10 +272,10 @@ async function projectOverview(p) {
     getJSON("/api/users" + pq).catch(() => ({})),
     getJSON("/api/status" + pq).catch(() => ({})),
   ]);
-  const ctx = {project: p.name, projects: app.projects, conn, preflight, job, users, status: runState, tested: {trac: null, gitlab: null}};
+  const ctx = {project: p.name, projects: app.projects, conn, preflight, job, users, status: runState, tested: {trac: conn.tracOk ?? null, gitlab: conn.gitlabOk ?? null}};
   let {step, kind} = currentStep(ctx);
-  let status = "Not configured";
-  if (conn.tracBaseUrl && conn.gitlabUrl) status = "Connected";
+  let status = stepVisual(stepState(ctx), STEPS[0], ctx).risk;
+  if (stepState(ctx).connect) status = "Connected";
   if (p.hasPreflight) { status = preflight.verdict || "Preflight run"; kind = kind || kindOf(preflight.verdict); }
   if (p.hasValidation) { status = "Validated"; kind = "ok"; }
   if (job && job.status === "running") { status = titleCase(job.kind) + " running"; kind = "run"; }
@@ -361,6 +365,7 @@ const STORED = "Stored. Leave blank to keep.";
 async function loadConnection() {
   const body = await getJSON("/api/project/connection" + q());
   app.conn = body;
+  app.tested = {trac: body.tracOk ?? null, gitlab: body.gitlabOk ?? null};
   $("fTracUrl").value = body.tracBaseUrl || "";
   $("fTracRpc").value = body.tracRpcPath || "";
   $("fGitlabUrl").value = body.gitlabUrl || "";
@@ -405,6 +410,7 @@ async function testConnection(kind) {
       setNote(el, "fail", "Test failed: " + netMessage(e));
     }
     setChips();
+    renderSteps();
   });
 }
 

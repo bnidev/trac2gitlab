@@ -59,19 +59,19 @@ func (s *Server) handleTestTrac(w http.ResponseWriter, r *http.Request) {
 	}
 	client, err := trac.NewTracClient(&cfg)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		s.writeTest(w, dir, "trac", false, err.Error())
 		return
 	}
 	if err := client.ValidateExpectedMethods(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": withAuthHint(err.Error(), "check TRAC_USER/TRAC_PASSWORD in .env")})
+		s.writeTest(w, dir, "trac", false, withAuthHint(err.Error(), "check TRAC_USER/TRAC_PASSWORD in .env"))
 		return
 	}
 	msg := "expected methods ok"
 	if err := client.ValidatePluginVersion(); err != nil {
-		writeJSON(w, map[string]any{"ok": true, "message": msg + "; plugin: " + err.Error()})
+		s.writeTest(w, dir, "trac", true, msg+"; plugin: "+err.Error())
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "message": msg + " + plugin version ok"})
+	s.writeTest(w, dir, "trac", true, msg+" + plugin version ok")
 }
 
 // handleTestGitLab checks the stored GitLab connection: client, version,
@@ -85,11 +85,11 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 	}
 	client, err := gitlab.NewGitLabClient(&cfg)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		s.writeTest(w, dir, "gitlab", false, err.Error())
 		return
 	}
 	if err := client.ValidateGitLab(); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": withAuthHint(err.Error(), "check GITLAB_TOKEN in .env")})
+		s.writeTest(w, dir, "gitlab", false, withAuthHint(err.Error(), "check GITLAB_TOKEN in .env"))
 		return
 	}
 	ref := any(cfg.GitLab.ProjectID)
@@ -98,10 +98,10 @@ func (s *Server) handleTestGitLab(w http.ResponseWriter, r *http.Request) {
 	}
 	project, err := client.GetProject(ref)
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "message": err.Error()})
+		s.writeTest(w, dir, "gitlab", false, err.Error())
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "message": "project " + project.PathWithNamespace})
+	s.writeTest(w, dir, "gitlab", true, "project "+project.PathWithNamespace)
 }
 
 // Secrets (passwords, tokens) are write-only: accepted on PUT, never returned.
@@ -132,6 +132,8 @@ type connectionForm struct {
 	HasTracGate    bool   `json:"hasTracGatePassword"`
 	HasGitlabGate  bool   `json:"hasGitlabGatePassword"`
 	HasToken       bool   `json:"hasGitlabToken"`
+	TracOK         *bool  `json:"tracOk"`   // last Test Trac result; null when untested since save
+	GitLabOK       *bool  `json:"gitlabOk"` // last Test GitLab result; null when untested since save
 }
 
 // handleGetConnection returns the connection form without secrets.
@@ -159,6 +161,8 @@ func (s *Server) handleGetConnection(w http.ResponseWriter, r *http.Request) {
 		HasTracGate:    cfg.Trac.HtaccessPass != "",
 		HasGitlabGate:  cfg.GitLab.HtaccessPass != "",
 		HasToken:       cfg.GitLab.Token != "",
+		TracOK:         s.tests.get(dir, "trac"),
+		GitLabOK:       s.tests.get(dir, "gitlab"),
 	})
 }
 
@@ -245,6 +249,14 @@ func (s *Server) handlePutConnection(w http.ResponseWriter, r *http.Request) {
 	if err := mergeDotEnv(filepath.Join(dir, ".env"), env); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if form.TracBaseURL != "" || form.TracRPCPath != "" || form.TracUser != "" || form.TracPassword != "" ||
+		form.TracGateUser != "" || form.TracGatePass != "" {
+		s.tests.clear(dir, "trac")
+	}
+	if form.GitLabURL != "" || form.GitLabToken != "" || form.GitLabProj != "" ||
+		form.GitlabGateUser != "" || form.GitlabGatePass != "" {
+		s.tests.clear(dir, "gitlab")
 	}
 	s.log(r, "connection saved", "projectDir", dir)
 	writeJSON(w, map[string]any{"ok": true})
